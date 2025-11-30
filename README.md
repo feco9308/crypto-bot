@@ -11,12 +11,11 @@ webes **Flask dashboarddal** és **backtest** funkcióval.
 
 ## 📸 Dashboard előnézet
 
-*(példa: XRPUSDC grafikon + magyarázó panel)*
 
-![Crypto Bot Dashboard – XRPUSDC](docs/dashboard_xrp_example.png)
 
-> Tedd ezt a képet a repóban a `docs/dashboard_xrp_example.png` helyre  
-> (README ugyanígy fogja megjeleníteni).
+![asd](https://github.com/feco9308/crypto-bot/blob/main/image.png)
+
+
 
 ---
 
