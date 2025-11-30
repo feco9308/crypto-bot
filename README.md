@@ -1,106 +1,103 @@
-# Crypto Bot
+Crypto Bot – RSI + EMA + Web Dashboard
 
-Egyszerű Binance alapú **RSI + EMA jelző bot** és hozzá tartozó **Flask webes dashboard**.
+Egyszerű Binance alapú RSI + EMA jelző bot, valós idejű grafikonos webes felülettel.
 
-> ⚠️ **Figyelem:** a bot jelenleg **NEM kereskedik automatikusan**.  
-> Csak **jelzést** ad (BUY / SELL / WAIT).  
-> Éles pénzzel való automata kereskedés előtt mindig legyen alapos backtest + paper trading!
+⚠️ Figyelem: a bot jelenleg NEM kereskedik automatikusan.
+Csak jelzést ad → BUY / SELL / WAIT
+Éles kereskedés előtt kötelező: backtest + paper trading!
 
----
+🚀 Funkciók
 
-## Fő funkciók
+✔ Binance valós idejű spot árak
+✔ RSI, EMA9, EMA21 technikai indikátorok
+✔ Jelzés logolás (CSV)
+✔ 1 napos történelmi grafikon (1 perces adatok)
+✔ Kattintható coin kiválasztás
+✔ Kombinált jelzések: RSI + EMA keresztezés együtt
+✔ Flask alapú WebUI
+✔ Backtest támogatás log alapján
 
-- Binance Spot API-ról valós idejű adatok (`BTCUSDC`, `ETHUSDC`, stb.)
-- **RSI + EMA9 + EMA21** indikátorok számítása
-- **Jelzések**:
-  - RSI-only jel (`RSI < 30` → BUY, `RSI > 70` → SELL)
-  - Kombinált jel (RSI + EMA keresztezés)
-- **Flask dashboard**:
-  - aktuális ár, RSI, EMA-k
-  - múltbéli grafikon (kb. 1 nap, 1 perces gyertyák)
-  - jelzések vizuálisan
-- **Backtest**:
-  - `signals_log.csv` alapján visszatesztelhető a stratégia
+📌 Jelzés logika összefoglaló
+Jelzés típusa	Logika
+RSI BUY	RSI < 30
+RSI SELL	RSI > 70
+WAIT	30–70 között
+RSI+EMA BUY	RSI BUY + EMA9 > EMA21
+RSI+EMA SELL	RSI SELL + EMA9 < EMA21
 
----
+📌 A WebUI grafikonon RSI BUY/SELL pontok is jelölve vannak.
 
-## Követelmények
+🧠 Grafikon értelmezése
 
-- Linux (Ubuntu vagy hasonló)
-- Python **3.11** (ajánlott)
-- Binance account + Spot API kulcs  
-  (read-only vagy kis összegű tesztpénz **erősen ajánlott**)
+Ár + EMA9 + EMA21 = trend
 
----
+RSI (jobb tengely) = túlvett/túladott
 
-## Telepítés
+RSI 30 = vételi zóna
 
-```bash
-# 1) Repo klónozás
+RSI 70 = eladási zóna
+
+RSI+EMA jel = biztosabb, kevesebb fake jel
+
+🛠️ Telepítés
+1️⃣ Repository klónozás
 git clone https://github.com/feco9308/crypto-bot.git
 cd crypto-bot
 
-# 2) Python virtuális környezet
+2️⃣ Python virtuális környezet
 python3.11 -m venv venv311
 source venv311/bin/activate
 
-# 3) Csomagok telepítése
+3️⃣ Csomagok telepítése
 pip install --upgrade pip
 pip install flask pandas ta binance-connector
-# (ha van requirements.txt, akkor inkább:)
+# vagy:
 # pip install -r requirements.txt
 
+🔑 API kulcs konfigurálása
+
+Hozd létre a config.py fájlt:
+
+API_KEY = "IDE_ÍRD_A_BINANCE_API_KEYT"
+API_SECRET = "IDE_ÍRD_A_BINANCE_SECRETET"
 
 
-Dashboard futtatása (fejlesztői módban)
-cd /az/elérési/utad/crypto-bot
+⚠️ Javasolt csak Spot-restricted és read-only kulcsot használni tesztelés idején!
+
+▶ Dashboard futtatása (fejlesztői mód)
+cd crypto-bot
 source venv311/bin/activate
 python dashboard.py
 
 
-Alapértelmezés szerint a Flask app:
+Elérés böngészőből:
 
-0.0.0.0:6000-on indul
+Hely	URL
+Lokálisan	http://127.0.0.1:6000
 
-böngészőből eléred:
+Hálózaton	http://SzerverIP:6000
 
-lokálisan: http://127.0.0.1:6000
+Automatikus frissítés 5 mp-ként 📡
 
-LAN-ról: http://SzerverIP:6000
+🏃 Dashboard futtatása systemd service-ként
 
-
-Dashboard futtatása systemd service-ként
-
-Így a dashboard automatikusan indul reboot után, és háttérben fut.
-
-1. Systemd unit fájl
-
-Hozz létre egy fájlt (rootként):
+Így reboot után is automatikusan indul.
 
 sudo nano /etc/systemd/system/crypto-dashboard.service
 
 
-Tartalma (a saját elérési utakkal / userrel):
+Tartalom (módosítsd a saját user/útvonal szerint):
 
 [Unit]
 Description=Crypto Bot Flask Dashboard
 After=network.target
 
 [Service]
-# A LINUX FELHASZNÁLÓ, AKI ALATT FUT (pl. "User name")
-User="User name"
-Group="User name"
-
-# A PROJEKT KÖNYVTÁR
-WorkingDirectory=/home/"User name"/binance
-
-# A VENV PATH
-Environment="PATH=/home/"User name"/binance/venv311/bin"
-
-# Hogyan indítsa el a Flask appot
-ExecStart=/home/"User name"/binance/venv311/bin/python dashboard.py
-
-# Ha leáll, induljon újra
+User=feco93
+Group=feco93
+WorkingDirectory=/home/feco93/binance
+Environment="PATH=/home/feco93/binance/venv311/bin"
+ExecStart=/home/feco93/binance/venv311/bin/python dashboard.py
 Restart=always
 RestartSec=5
 
@@ -108,58 +105,35 @@ RestartSec=5
 WantedBy=multi-user.target
 
 
-Figyelj, hogy a fenti útvonalak egyezzenek a sajátoddal!
+Aktiválás:
 
-2. Systemd újratöltés, indítás
 sudo systemctl daemon-reload
 sudo systemctl enable --now crypto-dashboard.service
-
-# Állapot ellenőrzése
 systemctl status crypto-dashboard.service
-
-# Log nézés (Ctrl+C-vel kilépsz)
 journalctl -u crypto-dashboard.service -f
 
+📊 Backtest használata
 
-Ezután a dashboard elérhető marad akkor is, ha kilépsz a terminálból.
+A bot minden jelzést logol a signals_log.csv fájlba.
+Ez alapján visszatesztelhető a stratégia:
 
-Backtest használata
-
-A bot a jelzéseket egy signals_log.csv fájlba logolja.
-Erre épít a backtest.py.
-
-Példa futtatás:
-
-cd /az/elérési/utad/crypto-bot
-source venv311/bin/activate
-
-# RSI + EMA kombinált stratégia
 python backtest.py --symbol BTCUSDC --balance 1000 --fee 0.001 --signal-type combined
 
-# RSI-only stratégia (csak RSI alapján számolt jel)
-python backtest.py --symbol BTCUSDC --balance 1000 --fee 0.001 --signal-type rsi
+🎛 Paraméterek
+Paraméter	Jelentés	Példa
+--symbol	Pár	BTCUSDC
+--balance	Kezdő tőke	1000
+--fee	Jutalék	0.001 = 0.1%
+--signal-type	Stratégia	combined vagy rsi
+🧪 Teendő automatizált kereskedés előtt
 
+☑ Backtest legalább több hónapnyi adaton
+☑ Paper trading több héten át
+☑ Stop-Loss & Take-Profit logika kialakítása
+☑ Kockázatkezelési szabályok meghatározása
 
-Paraméterek:
+⚠️ Jogi nyilatkozat
 
---symbol – Binance spot pár (pl. BTCUSDC)
-
---balance – kezdő USDC egyenleg
-
---fee – jutalék egy irányban (0.001 = 0.1%)
-
---signal-type – combined vagy rsi
-
-Fontos megjegyzések
-
-A kód oktatási célú, nem pénzügyi tanácsadás.
-
-Éles pénzzel csak akkor kereskedj, ha:
-
-érted a stratégiát,
-
-kipróbáltad backtestben,
-
-és futtattad paper trading módban is.
-
-A Binance API kulcsokat mindig korlátozd (IP-limit, csak Spot, alacsony limit).
+Ez a projekt nem pénzügyi tanácsadás!
+A kriptokereskedés magas kockázatú.
+Mindenki csak saját felelősségére használja!
