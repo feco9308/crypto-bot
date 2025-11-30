@@ -1,138 +1,261 @@
-Crypto Bot – RSI + EMA + Web Dashboard
+# 🪙 Crypto Bot – RSI + EMA Trading Signal Dashboard
 
-Egyszerű Binance alapú RSI + EMA jelző bot, valós idejű grafikonos webes felülettel.
+Egyszerű Binance Spot alapú **RSI + EMA** indikátoros jelző bot,  
+webes **Flask dashboarddal** és **backtest** funkcióval.
 
-⚠️ Figyelem: a bot jelenleg NEM kereskedik automatikusan.
-Csak jelzést ad → BUY / SELL / WAIT
-Éles kereskedés előtt kötelező: backtest + paper trading!
+> ⚠️ **Figyelem**  
+> A bot jelenleg **NEM kereskedik automatikusan** – csak **jelzést ad** (BUY / SELL / WAIT).  
+> Éles pénzzel való automatizálás előtt mindig legyen **alapos backtest + paper trading**!
 
-🚀 Funkciók
+---
 
-✔ Binance valós idejű spot árak
-✔ RSI, EMA9, EMA21 technikai indikátorok
-✔ Jelzés logolás (CSV)
-✔ 1 napos történelmi grafikon (1 perces adatok)
-✔ Kattintható coin kiválasztás
-✔ Kombinált jelzések: RSI + EMA keresztezés együtt
-✔ Flask alapú WebUI
-✔ Backtest támogatás log alapján
+## 📸 Dashboard előnézet
 
-📌 Jelzés logika összefoglaló
-Jelzés típusa	Logika
-RSI BUY	RSI < 30
-RSI SELL	RSI > 70
-WAIT	30–70 között
-RSI+EMA BUY	RSI BUY + EMA9 > EMA21
-RSI+EMA SELL	RSI SELL + EMA9 < EMA21
+*(példa: XRPUSDC grafikon + magyarázó panel)*
 
-📌 A WebUI grafikonon RSI BUY/SELL pontok is jelölve vannak.
+![Crypto Bot Dashboard – XRPUSDC](docs/dashboard_xrp_example.png)
 
-🧠 Grafikon értelmezése
+> Tedd ezt a képet a repóban a `docs/dashboard_xrp_example.png` helyre  
+> (README ugyanígy fogja megjeleníteni).
 
-Ár + EMA9 + EMA21 = trend
+---
 
-RSI (jobb tengely) = túlvett/túladott
+## 🧩 Fő funkciók
 
-RSI 30 = vételi zóna
+- Binance **Spot** API-ról valós idejű adatok (pl. `BTCUSDC`, `ETHUSDC`, `BNBUSDC`, `SOLUSDC`, `XRPUSDC`)
+- Technikai indikátorok:
+  - **RSI (Relative Strength Index)**
+  - **EMA9 / EMA21** (Exponenciális mozgóátlagok)
+- Jelzések:
+  - **RSI-only** jelzés (RSI < 30 → BUY, RSI > 70 → SELL, különben WAIT)
+  - **RSI+EMA kombinált** jelzés (RSI + trend együtt)
+- Webes dashboard (Flask):
+  - 24h history grafikon (1 perces adatok)
+  - Ár + EMA9 + EMA21 + RSI + RSI BUY/SELL pontok
+  - Coin táblázat: aktuális ár, RSI, EMA-k, RSI jelzés, RSI+EMA jelzés
+- Backtest:
+  - `signals_log.csv` alapján visszatesztelhető stratégia (RSI-only / combined)
+- Szolgáltatásként futtatható (**systemd**), hogy reboot után is automatikusan induljon.
 
-RSI 70 = eladási zóna
+---
 
-RSI+EMA jel = biztosabb, kevesebb fake jel
+## 🧱 Architektúra
 
-🛠️ Telepítés
-1️⃣ Repository klónozás
-git clone https://github.com/feco9308/crypto-bot.git
-cd crypto-bot
+- `trading_bot.py`
+  - Binance Spot API hívások
+  - RSI + EMA9 + EMA21 számítása
+  - jelzés logika (RSI-only + RSI+EMA)
+  - logolás: `signals_log.csv`
+- `dashboard.py`
+  - Flask app
+  - REST API endpointok (`/api/signal`, `/api/all_signals`)
+  - HTML + JavaScript alapú dashboard (grafikon + táblázat)
+- `backtest.py`
+  - `signals_log.csv` feldolgozása
+  - szimulált kereskedés (BUY/SELL jelzések alapján)
+  - eredmény: PnL, winrate, trade statisztikák
 
-2️⃣ Python virtuális környezet
-python3.11 -m venv venv311
-source venv311/bin/activate
+---
 
-3️⃣ Csomagok telepítése
-pip install --upgrade pip
-pip install flask pandas ta binance-connector
+## 📌 Követelmények
 
+- Linux (Ubuntu ajánlott, de mással is működhet)
+- Python **3.11**
+- Binance account + **Spot API kulcs**
+  - legjobb, ha **READ-ONLY** vagy kis tesztösszeggel használod
 
-🔑 API kulcs konfigurálása
+---
 
-Hozd létre a config.py fájlt:
+## ⚙ Konfiguráció – `config.py`
 
+Hozz létre egy `config.py` fájlt a projekt gyökerében:
+
+```python
 API_KEY = "IDE_ÍRD_A_BINANCE_API_KEYT"
 API_SECRET = "IDE_ÍRD_A_BINANCE_SECRETET"
 
+# Melyik párokat figyelje a dashboard
+SYMBOLS = ["BTCUSDC", "ETHUSDC", "BNBUSDC", "SOLUSDC", "XRPUSDC"]
 
-⚠️ Javasolt csak Spot-restricted és read-only kulcsot használni tesztelés idején!
+# Jelzés log fájl
+LOG_PATH = "signals_log.csv"
 
-▶ Dashboard futtatása (fejlesztői mód)
+# Frissítési idő (másodperc)
+REFRESH_SECONDS = 5
+```
+
+> 🔒 Ezt a fájlt **SOHA NE töltsd fel** nyilvános repóba!
+
+---
+
+## 🛠 Telepítés
+
+```bash
+# Repo klónozás
+git clone https://github.com/feco9308/crypto-bot.git
+cd crypto-bot
+
+# Python virtuális környezet
+python3.11 -m venv venv311
+source venv311/bin/activate
+
+# Csomagok telepítése
+pip install --upgrade pip
+pip install flask pandas ta binance-connector
+# vagy:
+# pip install -r requirements.txt
+```
+
+---
+
+## 🚀 Quick Start – Dashboard indítása fejlesztői módban
+
+```bash
 cd crypto-bot
 source venv311/bin/activate
 python dashboard.py
+```
 
+Alapértelmezett elérés böngészőből:
 
-Elérés böngészőből:
+| Hely       | URL                     |
+|-----------|--------------------------|
+| Lokálisan | http://127.0.0.1:6000    |
+| Hálózaton | http://SZERVER_IP:6000   |
 
-Hely	URL
-Lokálisan	http://127.0.0.1:6000
+---
 
-Hálózaton	http://SzerverIP:6000
+## 🔁 Dashboard futtatása systemd szolgáltatásként
 
-Automatikus frissítés 5 mp-ként 📡
+Így a dashboard automatikusan indul reboot után, és háttérben fut.
 
-🏃 Dashboard futtatása systemd service-ként
+### 1️⃣ Unit fájl létrehozása
 
-Így reboot után is automatikusan indul.
-
+```bash
 sudo nano /etc/systemd/system/crypto-dashboard.service
+```
 
+Tartalom (saját userre/útra igazítsd):
 
-Tartalom (módosítsd a saját user/útvonal szerint):
-
+```ini
 [Unit]
 Description=Crypto Bot Flask Dashboard
 After=network.target
 
 [Service]
-User=feco93
-Group=feco93
-WorkingDirectory=/home/feco93/binance
-Environment="PATH=/home/feco93/binance/venv311/bin"
-ExecStart=/home/feco93/binance/venv311/bin/python dashboard.py
+User="user"
+Group="user"
+WorkingDirectory=/home/"user"/binance
+Environment="PATH=/home/"user"/binance/venv311/bin"
+ExecStart=/home/"user"/binance/venv311/bin/python dashboard.py
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
+```
 
+### 2️⃣ Engedélyezés és indítás
 
-Aktiválás:
-
+```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now crypto-dashboard.service
 systemctl status crypto-dashboard.service
+```
+
+Log figyelés:
+
+```bash
 journalctl -u crypto-dashboard.service -f
+```
 
-📊 Backtest használata
+---
 
-A bot minden jelzést logol a signals_log.csv fájlba.
-Ez alapján visszatesztelhető a stratégia:
+## 📈 Backtest használata
 
+A bot a jelzéseket egy `signals_log.csv` fájlba logolja.  
+Erre épít a `backtest.py` script.
+
+### Példa futtatás
+
+```bash
+cd crypto-bot
+source venv311/bin/activate
+
+# RSI + EMA kombinált stratégia
 python backtest.py --symbol BTCUSDC --balance 1000 --fee 0.001 --signal-type combined
 
-🎛 Paraméterek
-Paraméter	Jelentés	Példa
---symbol	Pár	BTCUSDC
---balance	Kezdő tőke	1000
---fee	Jutalék	0.001 = 0.1%
---signal-type	Stratégia	combined vagy rsi
-🧪 Teendő automatizált kereskedés előtt
+# RSI-only stratégia (csak RSI alapján számolt jel)
+python backtest.py --symbol BTCUSDC --balance 1000 --fee 0.001 --signal-type rsi
+```
 
-☑ Backtest legalább több hónapnyi adaton
-☑ Paper trading több héten át
-☑ Stop-Loss & Take-Profit logika kialakítása
-☑ Kockázatkezelési szabályok meghatározása
+### Paraméterek
 
-⚠️ Jogi nyilatkozat
+- `--symbol` – Binance spot pár (pl. `BTCUSDC`)
+- `--balance` – kezdő USDC egyenleg
+- `--fee` – jutalék egy irányban (0.001 = 0.1%)
+- `--signal-type` – `combined` vagy `rsi`
 
-Ez a projekt nem pénzügyi tanácsadás!
-A kriptokereskedés magas kockázatú.
-Mindenki csak saját felelősségére használja!
+---
+
+## 📐 Indikátor logika – röviden
+
+**RSI szint:**
+
+- **RSI < 30** → túladott zóna → potenciális **BUY**
+- **RSI > 70** → túlvett zóna → potenciális **SELL**
+- 30–70 között → semleges / várakozás (WAIT)
+
+**EMA-k:**
+
+- **EMA9 > EMA21** → inkább **emelkedő trend**
+- **EMA9 < EMA21** → inkább **csökkenő trend**
+
+**Kombinált RSI+EMA jelzés:**
+
+- **BUY**, ha:
+  - RSI < 30 és
+  - EMA9 > EMA21 (azaz az indikátor túladott, de a trend felfelé fordul)
+- **SELL**, ha:
+  - RSI > 70 és
+  - EMA9 < EMA21 (túlvett + gyengülő trend)
+
+Ez a kombináció általában **kevesebb fals jelzést** ad, mint az önmagában használt RSI.
+
+---
+
+## 🔐 Biztonság
+
+- Binance API kulcs:
+  - csak **Spot** jogosultság
+  - lehetőség szerint **IP-limit**
+  - kis tőke, teszteléshez
+- API Key / Secret **soha ne kerüljön GitHubra**
+- Ha publikus repóban használod, tedd a `config.py`-t `.gitignore`-ba.
+
+---
+
+## 🧪 Ajánlott lépések automatizálás előtt
+
+1. **Backtest** több hónapnyi adaton
+2. **Paper trading** (csak jelzést figyelsz, manual trade)
+3. Csak ezután érdemes gondolkodni:
+   - automata order küldésen
+   - valódi nagyobb tőkével való futtatáson
+
+---
+
+## 📜 Licence
+
+A projekt jelenleg személyes / oktatási célú.  
+Ha később publikus licence (pl. MIT) kerül rá, azt itt fogod látni.
+
+---
+
+## 🤝 Közreműködés
+
+Issue-k, ötletek, pull requestek jöhetnek:
+
+- GitHub: https://github.com/feco9308/crypto-bot
+
+Ha hasznosnak találod a projektet, dobj egy ⭐-t a repóra! 🙂
