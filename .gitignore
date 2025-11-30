@@ -1,0 +1,7 @@
+venv*/
+__pycache__/
+*.log
+signals_log.csv
+config.py
+*.sqlite
+*.db

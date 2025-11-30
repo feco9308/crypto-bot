@@ -1,0 +1,9 @@
+{
+  "symbols": [
+    { "symbol": "BTCUSDC", "enabled": true,  "auto_trade": false },
+    { "symbol": "ETHUSDC", "enabled": true,  "auto_trade": false },
+    { "symbol": "BNBUSDC", "enabled": true,  "auto_trade": false },
+    { "symbol": "SOLUSDC", "enabled": true,  "auto_trade": false },
+    { "symbol": "XRPUSDC", "enabled": true,  "auto_trade": false }
+  ]
+}
