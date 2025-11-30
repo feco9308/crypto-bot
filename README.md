@@ -51,8 +51,7 @@ source venv311/bin/activate
 3️⃣ Csomagok telepítése
 pip install --upgrade pip
 pip install flask pandas ta binance-connector
-# vagy:
-# pip install -r requirements.txt
+
 
 🔑 API kulcs konfigurálása
 
