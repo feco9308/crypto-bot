@@ -45,8 +45,9 @@ flowchart TD
 ```
 
 A scanner, a web és a paper engine külön folyamat. A Strategy Engine, Risk Manager és
-Portfolio belső komponensek. A paper engine a már eltárolt scanner snapshotokat olvassa;
-a web és a stratégia nem indít új Binance adatlekéréseket. Csak az execution réteg
+Portfolio belső komponensek. A stratégia a már eltárolt, lezárt **1h** scanner snapshotokat olvassa. A paper engine
+külön publikus bookTicker quote-ot kér a fillhez, stop/TP ellenőrzéshez és markhoz.
+A web GET nézetei nem kérnek market data-t; a manuális close POST friss quote-ot kér. Csak az execution réteg
 hajthat végre ordert, és jelenleg kizárólag helyi paper implementáció létezik.
 
 **Egy production adatbázishoz egy scanner és egy paper engine fusson.**
@@ -153,7 +154,8 @@ A scanner listái és súlyai JSON-ként adhatók meg. Az időbélyegek UTC-ben 
 ## Paper stratégia és risk
 
 A referencia-stratégia a pipeline ellenőrzésére készült, profitoptimalizálás nélkül.
-Alap BUY feltételek: effective WATCH/PINNED, score ≥70, elérhető Δ4h ≥0,
+Alap BUY feltételek: algoritmikus Auto Watchlist tagság **vagy külön manuális trade engedély**,
+score ≥70, elérhető Δ4h ≥0,
 EMAfast > EMAslow, RSI 40–70, relative volume ≥1. Stop: entry reference − 2×ATR.
 Hiányzó momentum esetén alapból HOLD. A küszöbök konfigurálhatók.
 
@@ -173,10 +175,37 @@ majd cash és exposure limitekkel korlátozza a méretet. A döntés és indokl�
 A portfolio külön kezeli a cash, reserved/available cash, PnL, fee és drawdown értékeket.
 A pénzügyi értékek Decimal-alapúak.
 
-**Ármodell:** a paper fill friss scanner snapshot záróárából készül, adverse slippage-pel.
-Nincs tick stream vagy intrabar stop; gap esetén a veszteség meghaladhatja a tervezett risket.
-Friss ár nélkül nincs kitalált fill, a manuális zárás is friss snapshotot igényel.
+**Két külön árforrás:** a strategy indikátorai, score-ja és referenciaára kizárólag
+lezárt 1h gyertyákból származnak. BUY fill/risk: aktuális bookTicker **ask**;
+SELL, stop/TP és long portfolio mark: aktuális **bid**. A slippage és fee ezen felül kerül rá.
+A strategy stop/TP szintjeit nem számoljuk újra nyitott gyertyából.
+Friss quote nélkül nincs fill vagy candle-close fallback; az utolsó ismert quote mark
+stale jelölést kap, és hiányos portfolio markok mellett új BUY tiltott.
+A stop/TP minden paper ciklusban ellenőrizhető, új candle nélkül, OFF állapotban is.
+Ez 15s alapértelmezett polling, nem tick stream: két lekérés közötti ármozgás és gap
+nem modellezhető pontosan. `PAPER_MAX_QUOTE_AGE_SECONDS=10`, `PAPER_QUOTE_TIMEOUT=5`.
 Az OFF alatt feldolgozott snapshot ON után nem kerül újra feldolgozásra.
+
+### Megfigyelés és kereskedési engedély
+
+| Symbol állapot | Új paper BUY jogosultság |
+| --- | --- |
+| Az algoritmus Auto Watchlistre választotta | Strategy/risk szabályok szerint, globális ON mellett |
+| Csak kézzel WATCH/PINNED | Alapból tiltott; külön `manual_trade_enabled=true` kell |
+| IGNORE | Új belépés tiltott, manuális flag mellett is |
+| Meglévő pozíció | Zárás/stop/TP nem igényel belépési engedélyt |
+
+A manuális flag kikapcsolása csak a manuális engedélyt vonja vissza; az algoritmikus
+tagság továbbra is önálló jogosultság. Ha egy WATCH/PINNED coin algoritmikusan is
+kiválasztott, ettől az automatikus tagságtól jogosult, nem a megfigyelési címkétől.
+A flag a Paper dashboardon állítható; az override-ot és a Market Score-t nem módosítja.
+Az engedély a paper reset után is megmarad, új pozícióhoz továbbra is strategy signal kell.
+
+```bash
+.venv/bin/market-scanner paper permissions
+.venv/bin/market-scanner paper allow --symbol SOLUSDT
+.venv/bin/market-scanner paper deny --symbol SOLUSDT
+```
 
 Részletek: [Paper Trading — stratégia, risk és könyvelés](https://github.com/feco9308/crypto-bot/blob/feature/trading-core-paper/docs/PAPER_TRADING.md).
 A [Market Scanner dokumentáció](https://github.com/feco9308/crypto-bot/blob/feature/trading-core-paper/docs/MARKET_SCANNER.md) tartalmazza a változatlan
@@ -209,13 +238,13 @@ Nginx Proxy Manager access control védi a domaint. A proxy célja a szerver LAN
 ## Adatbázis, backup és frissítés
 
 Scanner táblák: instruments, scanner_runs, snapshots, decisions, overrides, override_events.
-Paper táblák: paper_account, strategy_signals, risk_decisions, paper_orders, paper_fills,
+Paper táblák: paper_account, paper_symbol_permissions, strategy_signals, risk_decisions, paper_orders, paper_fills,
 paper_positions, paper_portfolio_snapshots, paper_processed_snapshots.
 Monitoring: service_status, system_events.
 
 Az auditkapcsolat: scanner snapshot → signal → risk decision → order → fill → position.
 SQLite WAL, foreign keys és 30s busy timeout aktív. Alembic:
-`0001_scanner → 0002_paper`; a scanner kompatibilitási `schema_version` értéke továbbra is 1.
+`0001_scanner → 0002_paper → 0003_quotes_permissions`; a scanner kompatibilitási `schema_version` értéke továbbra is 1.
 
 Meglévő éles rendszer frissítése előtt készíts konzisztens mentést, jegyezd fel a
 row countokat és override-okat, próbáld ki a migrációt a mentés másolatán, majd
@@ -251,7 +280,7 @@ megoldottuk, a feature branch feltöltése sikeres.
 .venv/bin/pytest -q
 ```
 
-A production migráció validációjakor **98 teszt sikeres**: scanner regresszió,
+A quote/permission módosítás validációjakor **134 teszt sikeres**: scanner regresszió,
 paper signal/risk/portfolio/execution, reset, persistence, migráció, monitoring és web.
 A tesztek izolált, determinisztikus adatokat használnak, nem élő Binance API-t.
 
@@ -265,7 +294,7 @@ A `legacy/` az eredeti programokat őrzi. A legacy RSI/EMA stratégia külön ma
 a régi config/CSV alapú programokat ne használd az új platform indítására.
 
 Következő mérföldkő: paper ledger reconciliation és tartós megfigyelés,
-pontosabb ármodell, OHLCV/spread archiválás, history retention és ütemezett backup.
+stream alapú ármodell, OHLCV/spread archiválás, history retention és ütemezett backup.
 
 ## OPERATIONS — jelenlegi production szerver
 
