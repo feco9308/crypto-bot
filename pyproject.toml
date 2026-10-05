@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=75,<81"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crypto-market-intelligence"
+version = "0.1.0"
+description = "Public-data Spot market scanner; no order execution"
+requires-python = ">=3.11"
+dependencies = ["Flask>=3.1,<4", "SQLAlchemy>=2.0,<3", "requests>=2.32,<3", "python-dotenv>=1.0,<2", "gunicorn>=23,<24"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+legacy = ["pandas>=2.2,<3", "ta>=0.11,<0.12", "binance-connector>=3,<4"]
+
+[project.scripts]
+market-scanner = "crypto_bot.main:main"
+
+[tool.setuptools.packages.find]
+include = ["crypto_bot*"]
+
+[tool.setuptools.package-data]
+"crypto_bot.web" = ["templates/*.html", "static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

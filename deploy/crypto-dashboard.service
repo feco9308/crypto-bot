@@ -1,0 +1,21 @@
+[Unit]
+Description=Market Intelligence Dashboard
+After=network-online.target
+
+[Service]
+Type=simple
+User=crypto-bot
+Group=crypto-bot
+WorkingDirectory=/opt/crypto-bot
+EnvironmentFile=/opt/crypto-bot/.env
+ExecStart=/opt/crypto-bot/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:6000 'crypto_bot.web.app:create_app()'
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/crypto-bot/data
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+{
+  "weights": {"trend": 25, "momentum": 20, "volume": 20, "volatility": 15, "liquidity": 20},
+  "momentum_windows": [1, 4, 24],
+  "history_tolerance_minutes": 20,
+  "ema_fast": 50,
+  "ema_slow": 200,
+  "rsi_period": 14,
+  "atr_period": 14,
+  "volume_period": 20,
+  "range_period": 20,
+  "price_momentum_period": 4,
+  "candle_limit": 500,
+  "rvol_full_score": 2,
+  "momentum_full_score_pct": 3,
+  "atr_target_pct": 2.5,
+  "liquidity_full_score_volume": 100000000,
+  "auto_min_score": 50,
+  "auto_min_relative_volume": 0.5,
+  "auto_min_atr_pct": 0.1,
+  "auto_max_atr_pct": 10,
+  "selection_momentum_weight": 0.5,
+  "riser_window": 4
+}
