@@ -37,10 +37,10 @@ market-scanner scan --once
 # Folyamatos scanner, alapértelmezetten futás után 300 másodperc szünet
 market-scanner scan
 # Development dashboard
-market-scanner web --host 127.0.0.1 --port 8000
+market-scanner web
 ```
 
-Dashboard: `http://127.0.0.1:8000`. Kompatibilis belépési pontok: `python trading_bot.py` és `python dashboard.py`. A webserver nem indít scannert; több Gunicorn worker sem sokszorozza meg a Binance-lekéréseket. **Egy adatbázishoz egy scanner folyamatot indíts.** SIGINT/SIGTERM után az aktuális futás befejeződik, a várakozás megszakad.
+A fejlesztői és production webserver alapértelmezetten `0.0.0.0:8000` címen figyel, így LAN-ról is elérhető: `http://SZERVER_LAN_IP:8000`. Helyben a `http://127.0.0.1:8000` cím is működik. Kompatibilis belépési pontok: `python trading_bot.py` és `python dashboard.py`. A webserver nem indít scannert; több Gunicorn worker sem sokszorozza meg a Binance-lekéréseket. **Egy adatbázishoz egy scanner folyamatot indíts.** SIGINT/SIGTERM után az aktuális futás befejeződik, a várakozás megszakad.
 
 Az időbélyegek UTC-ben jelennek meg és UTC-ben tárolódnak. Ár: utolsó lezárt gyertya záróára; spread és 24h quote volume: aktuális ticker-pillanatkép. A kettő eltérő időablakot reprezentál, ezért nem tekintendő tick-pontosságú szinkron snapshotnak.
 
@@ -55,7 +55,16 @@ cp config/scanner.example.json config/scanner.json
 # SCANNER_WEIGHTS={"trend":25,"momentum":20,"volume":20,"volatility":15,"liquidity":20}
 ```
 
-Minden beállítás felülírható `SCANNER_` + a mező nagybetűs nevével. Így a `scanner_interval` változó neve `SCANNER_SCANNER_INTERVAL`. Listákat és dictionaryket JSON-ként adj meg. A teljes mezőkészlet: [settings.py](crypto_bot/config/settings.py).
+A webes bind külön, a scanner konfigurációjától függetlenül állítható `.env`-ből vagy környezeti változókból:
+
+```dotenv
+WEB_HOST=0.0.0.0
+WEB_PORT=8000
+```
+
+Ezek a defaultok a `market-scanner web`, `python dashboard.py` és a Gunicorn konfiguráció esetén is érvényesek. A fejlesztői CLI `--host` és `--port` kapcsolói felülírják az environment értékeket, például `market-scanner web --host 0.0.0.0 --port 8080`. A bind módosítása után indítsd újra a webfolyamatot.
+
+Minden scanner-beállítás felülírható `SCANNER_` + a mező nagybetűs nevével. Így a `scanner_interval` változó neve `SCANNER_SCANNER_INTERVAL`. Listákat és dictionaryket JSON-ként adj meg. A teljes mezőkészlet: [settings.py](crypto_bot/config/settings.py).
 
 | Beállítás | Alapérték / jelentés |
 | --- | --- |
@@ -179,9 +188,19 @@ sudo systemctl enable --now crypto-scanner crypto-dashboard
 journalctl -u crypto-scanner -f
 ```
 
-Dashboard production parancs: `.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:8000 'crypto_bot.web.app:create_app()'`. Scanner és web külön szolgáltatás. Tartós secret szükséges, hogy több worker ugyanazt a session/CSRF kulcsot használja.
+Dashboard production parancs: `.venv/bin/gunicorn --config gunicorn.conf.py 'crypto_bot.web.app:create_app()'`. A `gunicorn.conf.py` alapból `0.0.0.0:8000` címet és két workert használ, a bindot a `WEB_HOST`/`WEB_PORT` értékekből olvassa. Scanner és web külön szolgáltatás. Tartós secret szükséges, hogy több worker ugyanazt a session/CSRF kulcsot használja.
 
-Távoli operátori elérés: `ssh -L 8000:127.0.0.1:8000 USER@SERVER`, majd helyi böngésző. Publikus eléréshez tegyél elé TLS-es, autentikált reverse proxyt; az alkalmazást ne tedd ki szabadon az internetre. Nincs szükség Binance credentialsre. A systemd minták lokális példák; itt nem telepítettünk szolgáltatást a hostra.
+Nginx Proxy Manager másik gépen: a Proxy Host célja `http`, Forward Hostname / IP = a dashboard szerver LAN IP-je, Forward Port = `8000` (vagy a konfigurált `WEB_PORT`). A `0.0.0.0` bind cím, nem a proxy célcíme. Az alkalmazás alapértelmezett LAN-bindjához nincs szükség SSH tunnelre. Nincs szükség Binance credentialsre.
+
+Meglévő systemd telepítés frissítése a dashboard unit újbóli másolása után:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart crypto-dashboard
+sudo ss -ltnp | grep :8000
+```
+
+A Local Address:Port oszlopban `0.0.0.0:8000` legyen. A scanner újraindítása nem szükséges. A systemd minták telepítéskor a saját útvonalakhoz igazítandók.
 
 ## Logging és tesztek
 

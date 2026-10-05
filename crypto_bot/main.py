@@ -16,8 +16,8 @@ def main():
     )
     parser.add_argument("command", choices=["init-db", "scan", "web"])
     parser.add_argument("--once", action="store_true")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     args = parser.parse_args()
     configure_logging()
     settings = Settings.load()
@@ -27,8 +27,10 @@ def main():
         return
     if args.command == "web":
         from crypto_bot.web.app import create_app
+        from crypto_bot.web.server import web_bind
 
-        create_app(settings, database).run(host=args.host, port=args.port)
+        host, port = web_bind(args.host, args.port)
+        create_app(settings, database).run(host=host, port=port)
         return
     scanner = Scanner(BinanceData(settings), database, settings)
     stop = threading.Event()
