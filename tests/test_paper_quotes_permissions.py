@@ -259,7 +259,7 @@ def test_strategy_ignores_non_1h_snapshots(pipeline, database):
 
 
 def test_fetch_does_not_hold_write_lock(pipeline, database):
-    _, engine, provider = pipeline
+    repo, engine, provider = pipeline
     original = provider.get_quotes
 
     def get(symbols):
@@ -271,6 +271,7 @@ def test_fetch_does_not_hold_write_lock(pipeline, database):
 
     provider.get_quotes = get
     assert engine.run_once(NOW)["orders"] == 1
+    assert repo.status()["open_positions"] == 1
 
 
 def pending(pipeline, database):
