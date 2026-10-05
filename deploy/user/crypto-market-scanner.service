@@ -3,8 +3,7 @@ Description=Market Scanner
 
 [Service]
 Type=simple
-User=ndvi
-Group=ndvi
+# User units inherit the ndvi user and groups from the user manager.
 WorkingDirectory=/home/ndvi/crypto-bot
 EnvironmentFile=/home/ndvi/crypto-bot/.env
 Environment=PYTHONUNBUFFERED=1
