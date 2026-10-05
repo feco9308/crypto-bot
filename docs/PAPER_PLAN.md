@@ -1,0 +1,11 @@
+# Paper milestone audit and isolation
+
+Baseline: feature/market-scanner-v2 at 2d6ccfa. Existing scanner process 12108 and web process 13425 run from /home/ndvi/crypto-bot. Development occurs in a separate worktree /home/ndvi/crypto-bot-paper on feature/trading-core-paper. No signals, restarts, edits, migration or writes are made to the running collection database during this milestone.
+
+Reusable: exchange-independent scanner snapshots, decisions/overrides, ORM sessions, templates, CSRF and GET-only adapter. Keep scoring, selection, indicators, provider, legacy strategy and existing storage models unchanged. Missing: precise bookkeeping, execution lifecycle, risk controls, migrations and persistent heartbeat. Add them as independent layers; heartbeat integration applies only to future process startup.
+
+Flow: persisted scanner snapshot -> pure StrategySignal -> pure RiskDecision -> cash reservation -> PaperExecutionService -> atomic ledger transaction. Decimal accounting, long-only, no pyramiding, market orders and application-level stops. Every signal refers to its scanner snapshot; risk/order/fill/position links retain the complete audit path. SELL exits bypass entry gates but require a known long position. Trading OFF blocks new entries; protective exits and manual exits remain active. No live adapter, credentials or trading API exists.
+
+Additive Alembic baseline and paper extension. Scanner schema_version stays 1; extension version tracked in alembic_version so old scanner initialization remains valid. One SQLite write transaction serializes paper actions; processed snapshot uniqueness prevents replay; account generation and lease prevent overlapping loops/reset races. Reset clears only paper data, is confirmed, disabled-only and refuses an active engine lease.
+
+Monitoring is a separate observer. Long-running processes heartbeat in a background thread, report success/errors and stop status; internal modules are components. Legacy scanner status uses inferred scan timestamps with a scanner-specific tolerance, never claims a process heartbeat. Events have bounded retention. Database errors can return an unhealthy response without leaking connection URLs or credentials.
