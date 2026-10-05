@@ -2,6 +2,7 @@
 
 [A fő README](../README.md) tartalmazza a telepítést és üzemeltetést.
 A scanner számításai a paper core hozzáadásával nem változtak.
+WATCH/PINNED megfigyelési állapot; a paper kereskedési engedély ettől külön tárolódik.
 
 ## Scanner alapbeállítások
 
