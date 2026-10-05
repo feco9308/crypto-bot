@@ -1,0 +1,15 @@
+{
+  "min_score": "70",
+  "min_delta": "0",
+  "delta_window": 4,
+  "require_delta": true,
+  "require_watch": true,
+  "require_bullish_ema": true,
+  "min_rsi": "40",
+  "max_rsi": "70",
+  "min_relative_volume": "1",
+  "stop_atr_multiplier": "2",
+  "exit_score": "45",
+  "exit_on_bearish_ema": true,
+  "take_profit_r_multiple": "0"
+}

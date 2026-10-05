@@ -1,5 +1,8 @@
 <!doctype html>
 <html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Market Intelligence</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><script defer src="{{ url_for('static', filename='dashboard.js') }}"></script></head>
-<body><header><a href="{{ url_for('index') }}">MARKET INTELLIGENCE</a><span>Binance Spot · {{ settings.quote_asset }} · {{ settings.timeframe }}</span></header><main>
-<p class="notice">A Market Score heurisztikus rangsor. Megfigyelés és adatgyűjtés; nincs order execution. Minden időpont UTC.</p>
+<body><header><a href="{{ url_for('index') }}">MARKET INTELLIGENCE</a><nav><a href="{{ url_for('index') }}">Scanner</a> · <a href="{{ url_for('paper') }}">Paper</a> · <a href="{{ url_for('services') }}">Services</a></nav><span>Binance Spot · {{ settings.quote_asset }} · {{ settings.timeframe }}</span></header><main>
+{% if preview_mode %}<section>Elkülönített előnézet: a scanner history másolatát használja. A jelenlegi élő adatgyűjtő másik adatbázison fut; a másolat nem frissül automatikusan.</section>{% endif %}
+<p class="notice">A Market Score heurisztikus rangsor. Megfigyelés és adatgyűjtés; NO LIVE TRADING IMPLEMENTED. Minden időpont UTC.</p>
+<section class="health-summary"><a href="{{ url_for('services') }}">SYSTEM HEALTH</a> · {{ system.summary.RUNNING + system.summary.READY }} Healthy · {{ system.summary.PAUSED }} Paused · {{ system.summary.DEGRADED }} Degraded · {{ system.summary.ERROR }} Error · {{ system.summary.STALE }} Stale · {{ system.summary.STOPPED }} Stopped · v{{ system.version }}
+{% for component in system.components %}{% if component.status in ['ERROR','STALE'] %}<p class="health-{{ component.status }}">SYSTEM WARNING: {{ component.name }} is {{ component.status }} · Last heartbeat: {{ component.last_heartbeat or 'unavailable' }} · {{ component.last_error_message or '' }}</p>{% endif %}{% endfor %}</section>
 {% block content %}{% endblock %}</main></body></html>

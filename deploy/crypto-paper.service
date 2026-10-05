@@ -1,0 +1,22 @@
+[Unit]
+Description=Paper Trading Core (NO LIVE TRADING)
+After=network-online.target
+
+[Service]
+Type=simple
+User=crypto-bot
+Group=crypto-bot
+WorkingDirectory=/opt/crypto-bot
+EnvironmentFile=/opt/crypto-bot/.env
+ExecStart=/opt/crypto-bot/.venv/bin/market-scanner paper run
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=120
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/crypto-bot/data
+
+[Install]
+WantedBy=multi-user.target

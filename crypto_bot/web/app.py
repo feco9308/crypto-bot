@@ -152,4 +152,7 @@ def create_app(settings=None, database=None):
             abort(404, "Unknown instrument; run market discovery first")
         return redirect(url_for("index"))
 
+    from crypto_bot.web.paper import register_paper
+
+    register_paper(app, database, settings)
     return app
