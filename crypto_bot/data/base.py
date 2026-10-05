@@ -1,4 +1,5 @@
 """Exchange-independent public market data contract."""
+
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -28,7 +29,11 @@ class Market:
 
     @property
     def spread_pct(self):
-        return (self.ask - self.bid) / ((self.ask + self.bid) / 2) * 100 if self.ask >= self.bid > 0 else float("inf")
+        return (
+            (self.ask - self.bid) / ((self.ask + self.bid) / 2) * 100
+            if self.ask >= self.bid > 0
+            else float("inf")
+        )
 
 
 class MarketDataProvider(Protocol):

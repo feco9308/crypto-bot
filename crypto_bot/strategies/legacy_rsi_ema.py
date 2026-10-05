@@ -1,4 +1,5 @@
 """Original RSI14 + adjusted EMA9/21 semantics; informational only."""
+
 import math
 
 
@@ -17,8 +18,8 @@ def legacy_rsi(values):
         return float("nan")
     gain = loss = 0.0
     for a, b in zip(values, values[1:]):
-        gain = gain * 13 / 14 + max(b-a, 0) / 14
-        loss = loss * 13 / 14 + max(a-b, 0) / 14
+        gain = gain * 13 / 14 + max(b - a, 0) / 14
+        loss = loss * 13 / 14 + max(a - b, 0) / 14
     return 100.0 if loss == 0 else 100 - 100 / (1 + gain / loss)
 
 
@@ -29,5 +30,17 @@ class LegacyRsiEma:
         rsi = legacy_rsi(closes)
         e9, e21 = adjusted_ema(closes, 9), adjusted_ema(closes, 21)
         rsi_signal = "BUY" if rsi < 30 else "SELL" if rsi > 70 else "WAIT"
-        combined = "BUY" if rsi < 30 and e9 > e21 else "SELL" if rsi > 70 and e9 < e21 else "WAIT"
-        return dict(rsi=rsi if math.isfinite(rsi) else None, ema9=e9, ema21=e21, signal_rsi=rsi_signal, signal=combined)
+        combined = (
+            "BUY"
+            if rsi < 30 and e9 > e21
+            else "SELL"
+            if rsi > 70 and e9 < e21
+            else "WAIT"
+        )
+        return dict(
+            rsi=rsi if math.isfinite(rsi) else None,
+            ema9=e9,
+            ema21=e21,
+            signal_rsi=rsi_signal,
+            signal=combined,
+        )

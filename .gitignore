@@ -17,3 +17,5 @@ build/
 dist/
 *.egg-info/
 .coverage
+/config/scanner.json
+.ruff_cache/

@@ -1,5 +1,16 @@
 from datetime import datetime
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -60,7 +71,10 @@ class Snapshot(Base):
     reasons: Mapped[list] = mapped_column(JSON)
     score_momentum: Mapped[dict] = mapped_column(JSON)
     score_version: Mapped[str] = mapped_column(String(40))
-    __table_args__ = (Index("ix_snapshot_history", "symbol", "timeframe", "timestamp"), Index("ix_snapshot_run_symbol", "run_id", "symbol", unique=True))
+    __table_args__ = (
+        Index("ix_snapshot_history", "symbol", "timeframe", "timestamp"),
+        Index("ix_snapshot_run_symbol", "run_id", "symbol", unique=True),
+    )
 
 
 class Decision(Base):
@@ -75,7 +89,9 @@ class Decision(Base):
 
 class Override(Base):
     __tablename__ = "overrides"
-    symbol: Mapped[str] = mapped_column(ForeignKey("instruments.symbol"), primary_key=True)
+    symbol: Mapped[str] = mapped_column(
+        ForeignKey("instruments.symbol"), primary_key=True
+    )
     status: Mapped[str] = mapped_column(String(8))
     updated_at: Mapped[datetime] = mapped_column(DateTime)
 
