@@ -1,424 +1,356 @@
-# Market Intelligence / Market Scanner
+# Crypto Bot — Market Scanner és Paper Trading Core
 
-Moduláris, API-kulcs nélkül működő Binance Spot piaci megfigyelő. **NO LIVE TRADING IMPLEMENTED. Valódi ordert nem küld; a paper réteg szimulált ordert könyvel.** Nincs futures, margin, leverage vagy ML-predikció. A Market Score heurisztikus rangsorolási érték, nem hozam- vagy nyerési valószínűség.
+**v0.2.0 · Binance Spot piaci megfigyelés · auditálható paper trading**
 
-Az első mérföldkő: automatikus USDT market discovery, indikátorok, magyarázható scoring, historikus tárolás, score momentum, automatikus piacválasztás és webes manuális kontroll. Az [audit és refaktorálási terv](docs/AUDIT.md) a GitHub `de95639` alapállapotát dokumentálja. Az eredeti szerver, config.py, CSV és API-kulcs nem szükséges.
+A rendszer publikus Binance market data alapján rangsorolja a piacokat, tárolja a
+Market Score történetét, kezeli az automatikus és kézi watchlistet, majd a már mentett
+snapshotokból szimulált kereskedési döntéseket hozhat.
 
-## Friss Ubuntu telepítés
+**NO LIVE TRADING IMPLEMENTED.** Valódi ordert nem küld. Nincs Binance live execution
+adapter, kereskedési API-kulcs, margin, futures, leverage vagy short. A paper account
+belső könyvelés, nem valódi crypto wallet. A Market Score és a signal strength nem
+profit- vagy nyerési valószínűség.
 
-Ubuntu 24.04+, Python 3.11 vagy újabb:
+Az aktuális implementáció a [`feature/trading-core-paper`](https://github.com/feco9308/crypto-bot/tree/feature/trading-core-paper)
+branchben található. A telepítési parancsok ezt a branchet használják.
+
+## Mi működik?
+
+| Terület | Funkciók |
+| --- | --- |
+| Market Scanner | Spot USDT discovery, piaci szűrés, RSI, EMA, ATR, relative volume |
+| Market Intelligence | Market Score, komponensek és indoklás, score history, Δ1h / Δ4h / Δ24h |
+| Watchlist | Auto Watchlist, AUTO / WATCH / PINNED / IGNORE override, perzisztált beállítások |
+| Paper Core | Strategy Engine, Risk Manager, portfolio, market BUY/SELL szimuláció |
+| Könyvelés | Cash-foglalás, fee, slippage, realized/unrealized PnL, exposure, drawdown |
+| Kontroll | Paper ON/OFF, stop loss, opcionális take profit, manuális zárás, megerősített reset |
+| Web és monitoring | Scanner, Paper Trading, Services, heartbeat, health API, system events |
+| Tárolás | Közös SQLite adatbázis, WAL, verziózott Alembic migrációk, trade audit trail |
+
+## Architektúra
+
+```mermaid
+flowchart TD
+    A[Publikus Binance market data] --> B[Market Scanner / Intelligence]
+    B --> D[(Közös SQLite adatbázis)]
+    D --> S[Strategy Engine]
+    S --> R[Risk Manager]
+    R --> P[Portfolio / Wallet]
+    P --> E[Execution interface]
+    E --> X[PaperExecutionService]
+    X --> D
+    D --> W[Web Dashboard / Monitoring]
+```
+
+A scanner, a web és a paper engine külön folyamat. A Strategy Engine, Risk Manager és
+Portfolio belső komponensek. A paper engine a már eltárolt scanner snapshotokat olvassa;
+a web és a stratégia nem indít új Binance adatlekéréseket. Csak az execution réteg
+hajthat végre ordert, és jelenleg kizárólag helyi paper implementáció létezik.
+
+**Egy production adatbázishoz egy scanner és egy paper engine fusson.**
+
+## Új telepítés
+
+Ubuntu 24.04+, Python 3.11 vagy újabb. Ezek a lépések új checkouthoz készültek;
+meglévő production `.env`-et vagy adatbázist ne írj felül velük.
 
 ```bash
 sudo apt update
 sudo apt install -y git python3 python3-venv
-# A repository tetszőleges könyvtárba klónozható.
-git clone https://github.com/feco9308/crypto-bot.git
+
+git clone --branch feature/trading-core-paper --single-branch \
+  https://github.com/feco9308/crypto-bot.git
 cd crypto-bot
-git switch feature/trading-core-paper
 python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements-dev.txt
-python -m pip install -e .
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -e .
 cp .env.example .env
-market-scanner init-db
-pytest -q
+chmod 600 .env
 ```
 
-A feature branch csak akkor klónozható a GitHubról, ha az implementáció commitjai fel vannak pusholva. Helyi checkoutból a `git clone` és `git switch` kihagyható. A `.env`, SQLite-adatbázisok és sidecar fájljaik, logok és virtualenv gitignore-olva vannak. A `pyproject.toml` a csomag és CLI belépési pontok forrása; `requirements.txt` és `requirements-dev.txt` rögzíti az itt tesztelt dependency verziókat. Production környezetben `pip install -r requirements.txt` és `pip install -e .` elegendő. Nem használunk meglévő virtualenvet.
+Indítás előtt szerkeszd a `.env` fájlt:
 
-## Indítás
+- `SCANNER_DATABASE_URL`: productionben abszolút SQLite útvonalat használj.
+- `SCANNER_SECRET_KEY`: tartós véletlen kulcs, amely minden web worker számára azonos.
+- `WEB_HOST=0.0.0.0`, `WEB_PORT=8000`: alapértelmezett LAN bind.
 
-Külön terminálokban, ugyanabból a repository gyökérből, aktivált virtualenvvel:
+Kulcs generálása: `.venv/bin/python -c 'import secrets; print(secrets.token_hex(32))'`.
+Az eredményt a saját `.env` fájlodba írd, ne commitold.
 
-```bash
-# Egyetlen scanner-futás (hiba / nulla eredmény esetén exit 1)
-market-scanner scan --once
-# Folyamatos scanner, alapértelmezetten futás után 300 másodperc szünet
-market-scanner scan
-# Development dashboard
-market-scanner web
-```
-
-A fejlesztői és production webserver alapértelmezetten `0.0.0.0:8000` címen figyel, így LAN-ról is elérhető: `http://SZERVER_LAN_IP:8000`. Helyben a `http://127.0.0.1:8000` cím is működik. Kompatibilis belépési pontok: `python trading_bot.py` és `python dashboard.py`. A webserver nem indít scannert; több Gunicorn worker sem sokszorozza meg a Binance-lekéréseket. **Egy adatbázishoz egy scanner folyamatot indíts.** SIGINT/SIGTERM után az aktuális futás befejeződik, a várakozás megszakad.
-
-Az időbélyegek UTC-ben jelennek meg és UTC-ben tárolódnak. Ár: utolsó lezárt gyertya záróára; spread és 24h quote volume: aktuális ticker-pillanatkép. A kettő eltérő időablakot reprezentál, ezért nem tekintendő tick-pontosságú szinkron snapshotnak.
-
-## Konfiguráció
-
-A `Settings` validálja az értékeket. Sorrend: beépített alapértékek → opcionális JSON-fájl → környezeti változók (a `.env` csak a még nem beállított environment értékeket tölti be).
-
-```bash
-cp config/scanner.example.json config/scanner.json
-# .env-be:
-# SCANNER_CONFIG=config/scanner.json
-# SCANNER_WEIGHTS={"trend":25,"momentum":20,"volume":20,"volatility":15,"liquidity":20}
-```
-
-A webes bind külön, a scanner konfigurációjától függetlenül állítható `.env`-ből vagy környezeti változókból:
+Példa ezen a szerveren:
 
 ```dotenv
+SCANNER_DATABASE_URL=sqlite:////home/ndvi/crypto-bot/data/market.db
 WEB_HOST=0.0.0.0
 WEB_PORT=8000
 ```
 
-Ezek a defaultok a `market-scanner web`, `python dashboard.py` és a Gunicorn konfiguráció esetén is érvényesek. A fejlesztői CLI `--host` és `--port` kapcsolói felülírják az environment értékeket, például `market-scanner web --host 0.0.0.0 --port 8080`. A bind módosítása után indítsd újra a webfolyamatot.
-
-Minden scanner-beállítás felülírható `SCANNER_` + a mező nagybetűs nevével. Így a `scanner_interval` változó neve `SCANNER_SCANNER_INTERVAL`. Listákat és dictionaryket JSON-ként adj meg. A teljes mezőkészlet: [settings.py](crypto_bot/config/settings.py).
-
-| Beállítás | Alapérték / jelentés |
-| --- | --- |
-| quote_asset / number_of_markets | USDT / TOP 50 |
-| timeframe | 1h; támogatott: 5m, 15m, 1h, 4h, 1d |
-| scanner_interval | 300 másodperc, az előző futás végétől |
-| minimum_quote_volume | 5 000 000 quote egység / 24h |
-| maximum_spread | 0.2 százalékpont; `(ask-bid)/mid × 100` |
-| auto_watchlist_size / top_score_size / top_risers_size | 5 / 5 / 5 |
-| ema_fast / ema_slow / rsi_period / atr_period | 50 / 200 / 14 / 14 |
-| volume_period / range_period / price_momentum_period | 20 / 20 / 4 gyertya |
-| candle_limit | 500 (maximum 1000, legalább kétszeres slow EMA warmup + nyitott gyertya) |
-| momentum_windows / riser_window | [1,4,24] óra / 4 óra |
-| history_tolerance_minutes | 20 perc a keresett időpont előtt |
-| request_pause / api_timeout / api_retries | 0.25s / 10s / 3 újrapróbálás |
-| request_weight_budget | 1000 / perc, konzervatív lokális keret |
-| database_url | sqlite:///data/market.db; relatív út a working directoryhoz |
-
-Az indikátorperiódusok módosításakor az `ema50`/`ema200` history mezőnevek kompatibilitás miatt maradnak; tényleges jelentésük az adott futás tárolt konfigurációjából olvasható ki. A scanner nem optimalizálja a paramétereket profitra.
-
-## Market discovery és adatminőség
-
-A publikus `/api/v3/exchangeInfo`, `/ticker/24hr`, `/ticker/bookTicker` adatokból aktív, Spot-engedélyezett USDT univerzumot építünk. Először kizárjuk a stablecoin alapú párokat, leveraged tokeneket, alacsony quote volume-ot, hibás bid/askot és nagy spreadet; a fennmaradó piacokat 24h quote volume szerint rendezzük, majd TOP N-et választunk. Az IGNORE nem befolyásolja az adatgyűjtést vagy a rangsorokat.
-
-A stable asset lista, kizárt assetek, leveraged suffixek és kivételek konfigurálhatók. A suffix-szűrés heurisztikus; a JUP explicit kivétel, mert normál token. Új tokeneknél a listákat karban kell tartani. WATCH/PINNED piacok a TOP N-en és quote univerzumon kívül is követhetők, de csak aktív Spot piacokról kérünk gyertyákat. Ezek a manuális piacok nem kerülnek automatikus rangsorkiválasztásba, amennyiben az automatikus univerzumnak nem felelnek meg.
-
-Csak lezárt gyertyákat értékelünk. Nem elégséges warmup, hiányzó/duplikált időpont, hibás OHLCV vagy túl régi utolsó gyertya esetén az instrumentum hibát kap. Egy instrumentum hibája nem állítja le a többieket; a futás `partial` lehet. Discovery-hiba vagy nulla pontozott eredmény `failed`. A részleges futás csak sikeres új snapshotokat publikál; a kézi piacok korábbi adatai külön régi adatként megmaradnak. Korábbi sikeres adatok sikertelen futás után is láthatók, régi adat jelöléssel.
-
-API-védelem: timeout, soros lekérések és pacing, lokális súlykeret, Binance használt-súly header, exponenciális retry hálózati/5xx hibákra. 418/429 esetén a Retry-After alapján cooldown indul; a hátralévő instrumentumokra nem küldünk új kérést a cooldown alatt. Az egész gép/IP más alkalmazásainak forgalmát a lokális keret nem tudja szabályozni. [Binance market data dokumentáció](https://developers.binance.com/en/docs/catalog/core-trading-spot-trading/api/rest-api/market), [REST API / limits](https://developers.binance.com/en/docs/products/spot/rest-api).
-
-## Market Score v1
-
-`clip(x) = min(1, max(0, x))`. Öt komponens 0–1-es nyers értékét normalizált súlyokkal adjuk össze:
-
-`component_points = raw_component × weight / sum(weights) × 100`
-
-| Komponens | Súly | Első verzió képlete |
-| --- | --- | --- |
-| Trend | 25 | Az EMAfast > EMAslow, price > EMAfast, price > EMAslow feltételek teljesülő aránya |
-| Momentum | 20 | Átlaga: clip(0.5 + momentum% / (2 × 3)), clip((RSI − 30) / 40), clip(range_position) |
-| Relative volume | 20 | clip(relative_volume / 2) |
-| Volatility | 15 | clip(1 − abs(ATR% − 2.5) / 2.5) |
-| Liquidity | 20 | Átlaga: clip(quote_volume / 100 000 000), clip(1 − spread% / maximum_spread) |
-
-A képlet küszöbei konfigurálhatók. A score bullish struktúrákat részesít előnyben; magas RSI itt momentumjellemző, nem vételi utasítás. Az ATR-komponens közepes volatilitást preferál, a szélsőségeket csökkenti.
-
-EMA: rekurzív exponenciális átlag `alpha=2/(period+1)`; RSI/ATR: Wilder kezdeti egyszerű átlag és simítás. Flat RSI = 50. Volume átlag: az utolsó gyertyát **megelőző** 20 gyertya, relative volume = utolsó volume / átlag. Price momentum: négy gyertyás záróárváltozás %. Range position: `(price − low20)/(high20 − low20)`, lapos tartományban 0.5. Volatility: rövid logika helyett egyszerű százalékos záróárhozamok populációs szórása a range ablakon; az ATR% külön tárolódik. Az aktuális/átlagos volume, 24h price change, quote volume és a teljes feature-készlet szintén mentésre kerül.
-
-Minden snapshot tartalmazza a komponenseket és az ember számára olvasható indoklást, beleértve a rendelkezésre álló score-deltákat. Ugyanezek a tiszta indikátor- és scoring-függvények később historikus gyertyákon is használhatók; a teljes score rekonstruálásához korabeli spread és 24h tickeradat is szükséges.
-
-## Score history és momentum
-
-`previous_score`: a history-ablak legutóbbi korábbi kompatibilis score-ja. Minden W órás ablaknál a `now − W hours` időpont **előtt vagy azzal egy időben** lévő legutóbbi snapshotot keressük, legfeljebb 20 perc eltéréssel:
-
-`delta_Wh = current_score − score_Wh_ago`
-
-Nincs jövőbeli adat, interpoláció vagy hiányzó adatra kitalált nulla. Más timeframe, scoring-verzió vagy eltérő publikus konfiguráció nem összehasonlítható. Új telepítésnél a delták kezdetben üresek. Ritkább scanner-intervallumnál a history tolerance értékét tudatosan igazítani kell. A konfigurációváltozás utáni első összehasonlítható ablakok újra felépülnek; a korábbi history megmarad.
-
-TOP MARKET SCORE = legmagasabb aktuális score. TOP SCORE RISERS = legnagyobb **pozitív**, elérhető delta a konfigurált riser_window alatt, alapból Δ4h. A score momentum külön számítás, nem része az aktuális Market Score-nak.
-
-## Auto Watchlist és manuális kontroll
-
-Az automatikus univerzumból az auto_min_score (50), relative volume (0.5x), ATR% (0.1–10%) küszöböknek megfelelő piacok:
-
-`selection_priority = score + 0.5 × max(0, delta_4h)`
-
-A legmagasabb prioritású N piacot választjuk; azonos értéknél symbol a determinisztikus tie-breaker. Hiányzó delta nem ad bónuszt. A trend, volume, volatility és liquidity a Market Score-on keresztül is részt vesz a kiválasztásban. A döntés és indoka minden sikeresen pontozott piacnál tárolódik.
-
-| User override | Effective state / működés |
-| --- | --- |
-| AUTO | WATCH, ha az algoritmus kiválasztotta; különben AUTO |
-| WATCH | Kézzel figyelt, automatikus döntéstől függetlenül követjük |
-| PINNED | Mindig kiemelt manuális piac; sikertelen lekérés esetén is látható |
-| IGNORE | Tényleges watchlistből kizárt; score-gyűjtés folytatódik |
-
-Az algoritmikus kiválasztás **független** a user override-tól: IGNORE mellett az algorithm_watch történetileg igaz lehet, effective_state viszont IGNORE. A dashboard AUTO WATCHLIST blokkja a kiválasztott piacokból kiszűri az IGNORE-t, ezért mérete csökkenhet; nem írjuk át a program eredeti döntését. WATCH/PINNED és algoritmikus kiválasztás együttesen is felismerhető.
-
-## Web UI
-
-Hat külön blokk: TOP MARKET SCORE, TOP SCORE RISERS, AUTO WATCHLIST, MANUAL WATCHLIST, PINNED, IGNORED. A táblázat kereshető, oszlopfejlécekkel rendezhető score, delták, relative volume, momentum és volume szerint is. A `Mentés` gomb persistálja a user override-t; algoritmikus döntést nem módosít. A symbol mezőben a discoveryből ismert, TOP N-en kívüli piac is kézzel hozzáadható.
-
-Instrumentumra kattintva: komponensek, indikátorok, deltaértékek, indoklás, státuszok és legutóbbi 1000 history-pont. A saját canvas grafikon közös, tényleges időtengelyen mutatja a score-t és árat eltérő, feliratozott skálákkal. Nagyobb adathiányokat nem köt össze; az alatta lévő táblázat JavaScript nélkül is használható. A felület explicit frissítést használ; nincs Binance-hívás webes GET során.
-
-Read-only JSON endpointok: `/api/markets`, `/api/history/<symbol>`. Override-módosítás: CSRF-védett POST `/override`; GET nem ír üzleti adatot. Ez egyetlen operátorhoz készült lokális dashboard, nincs felhasználói bejelentkezés vagy többfelhasználós jogosultságkezelés.
-
-## Adatbázis és migráció
-
-SQLite WAL módban, foreign key enforcementtel és 30s busy timeouttal. SQLAlchemy ORM/repository boundary. `market-scanner init-db` idempotensen létrehozza a v1 sémát; meglévő táblákat nem alakít át csendben. A `schema_version` ellenőrzi a támogatott verziót. Következő séma-változáskor verziózott migráció szükséges, adatvesztéses újrainicializálás helyett.
-
-Táblák:
-
-- `instruments`: symbol, base/quote asset, aktív és Spot állapot, frissítés ideje.
-- `scanner_runs`: UTC időpont, timeframe, konfiguráció, státusz, számlálók, hibák, befejezés.
-- `snapshots`: teljes/component score, ár, RSI, EMA50/200, ATR, relative volume, spread, további feature-k, delták, indokok és scoring-verzió.
-- `decisions`: futásonkénti algorithm_watch és kiválasztási indok.
-- `overrides`: aktuális user override és módosítás ideje.
-- `override_events`: AUTO/WATCH/PINNED/IGNORE változások audit trailje.
-
-A futás eredményei és döntései egy tranzakcióban publikálódnak. Megszakított folyamat után a `running` státusz megmaradhat bizonyítékként; az új futás új rekordot készít. Nincs retenció/törlés, backup vagy gyertyaarchívum ebben a verzióban. A history indexelt symbol/timeframe/idő szerint. Konfiguráció és user override újraindítás után a run historyban/override táblában megmarad; aktív konfiguráció forrása továbbra is JSON/env.
-
-PostgreSQL-hez később külön driver telepítése és database_url váltás szükséges, plusz migráció/átköltöztetés. Az ORM nem garantálja a meglévő SQLite-adatok automatikus átvitelét; a PostgreSQL üzemet ebben a mérföldkőben nem teszteltük.
-
-## Production / systemd
-
-A production minták a `/home/ndvi/crypto-bot` checkoutot és `ndvi` felhasználót használják.
-A három szolgáltatás telepítését, státuszát és a felhasználói/rendszerszintű systemd közötti
-váltást az OPERATIONS rész írja le. Más gépen a minták útvonalait és felhasználóját igazítsd.
-Az adatbázis frissítését mindig konzisztens mentés és integritásellenőrzés előzze meg.
-
-Dashboard production parancs: `.venv/bin/gunicorn --config gunicorn.conf.py 'crypto_bot.web.app:create_app()'`. A `gunicorn.conf.py` alapból `0.0.0.0:8000` címet és két workert használ, a bindot a `WEB_HOST`/`WEB_PORT` értékekből olvassa. Scanner és web külön szolgáltatás. Tartós secret szükséges, hogy több worker ugyanazt a session/CSRF kulcsot használja.
-
-Nginx Proxy Manager másik gépen: a Proxy Host célja `http`, Forward Hostname / IP = a dashboard szerver LAN IP-je, Forward Port = `8000` (vagy a konfigurált `WEB_PORT`). A `0.0.0.0` bind cím, nem a proxy célcíme. Az alkalmazás alapértelmezett LAN-bindjához nincs szükség SSH tunnelre. Nincs szükség Binance credentialsre.
-
-Meglévő systemd telepítés frissítése a dashboard unit újbóli másolása után:
+A relatív default `sqlite:///data/market.db` a munkakönyvtárhoz képest értendő.
+Minden folyamat ugyanazt a `.env`-et és DB útvonalat használja.
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl restart crypto-web
-sudo ss -ltnp | grep :8000
+.venv/bin/market-scanner migrate
+.venv/bin/market-scanner paper init
+.venv/bin/market-scanner paper status
+.venv/bin/market-scanner scan --once
 ```
 
-A Local Address:Port oszlopban `0.0.0.0:8000` legyen. A scanner újraindítása nem szükséges. A systemd minták telepítéskor a saját útvonalakhoz igazítandók.
+Az új paper account **1000 USDT és TRADING OFF** állapotból indul. A `paper init`
+idempotens; meglévő accountot nem resetel és nem kapcsol automatikusan OFF-ra.
+A `migrate` a scanner és a paper sémát is létrehozza. Az `init-db` önmagában csak a
+scanner tábláit inicializálja; a web/scanner indítása nem helyettesíti a migrációt.
 
-## Logging és tesztek
+## Fejlesztői indítás
 
-JSON logging stdout/stderr felé: SCANNER_START, SCANNER_COMPLETE (jelöltek, scored, errors, TOP SCORE, TOP RISERS), SCANNER_FAILED, INSTRUMENT_ERROR, API_RATE_LIMIT, AUTO_WATCHLIST_CHANGE és USER_ACTION. systemd alatt journald tárolja. Secret és adatbázis-URL nem kerül a konfigurációs snapshotba.
+Ugyanabból a repository gyökérből, külön terminálokban:
 
 ```bash
-pytest -q
-python -m compileall -q crypto_bot
-node --check crypto_bot/web/static/dashboard.js  # opcionális frontend syntax check
+.venv/bin/market-scanner scan
+.venv/bin/market-scanner paper run
+.venv/bin/market-scanner web
 ```
 
-A tesztek nem használnak élő Binance kapcsolatot: kézzel ellenőrizhető indikátorértékek, normalizáció és szélsőségek, időalapú momentum/no-lookahead, market filterek, kiválasztás, mind a nyolc AUTO/manual prioritáskombináció, részleges hibák, adatbázis újranyitás, CSRF, API retry/timeout/cooldown és dashboard/history integráció.
+A scanner az aktuális futás befejezése után alapból 300 másodpercet vár. A paper engine
+alapból 15 másodpercenként dolgozik. SIGINT/SIGTERM szabályos leállítást kér.
+Az engine elindítása **nem kapcsolja ON-ra a tradinget**; az ON/OFF állapot a DB-ben él.
 
-## Legacy és következő mérföldkő
-
-A `legacy/` könyvtár az eredeti README-t, trading_bot.py-t, dashboard.py-t, backtest.py-t és watchlist fájlokat őrzi. A gyökérben backtest.py, watchlist.py/json és image.png szintén változatlan referencia. A régi backtest csak meglévő CSV-vel és az opcionális `pip install -e '.[legacy]'` függőségekkel használható; új scanner nem gyárt signals_log.csv-t. Az eredeti legacy dashboard/trading_bot továbbra is régi configot igényel, ezeket ne használd az új platform indításához.
-
-A tiszta `crypto_bot/strategies/legacy_rsi_ema.py` megőrzi az eredeti pandas adjusted EMA9/21 és ta RSI14 szemantikát (flat RSI ott 100), valamint RSI-only és combined BUY/SELL/WAIT jelzéseket. Ezek kizárólag összehasonlítható információk, a scanner nem hívja execution célra. A régi backtest optimista fills/fee és CSV-formátum korlátait az audit rögzíti.
-
-Következő mérföldkő: verziózott migrációk, retenció/backup, historikus OHLCV és spread/ticker archiválás, megfigyelési lefedettség és üzemeltetési metrikák, score-emelkedést követő 1h/4h/12h/24h ármozgás elemzése. Ezután külön stratégia- és risk réteg, majd paper trading. Profitoptimalizálás és live execution külön, későbbi feladat.
-
-## Paper Trading Core — v0.2.0
-
-**NO LIVE TRADING IMPLEMENTED.** Kizárólag belső, szimulált long-only account, publikus scanner snapshotokkal. Nem valódi wallet, nincs Binance trading API-kulcs, broker adapter, margin, futures, leverage vagy short. Az RSI/EMA legacy stratégia és a scanner score/selection képletei változatlanok.
-
-A `feature/trading-core-paper` branch a `feature/market-scanner-v2` utódja. Az aktuális fejlesztés külön worktree-ben történt (`/home/ndvi/crypto-bot-paper`); az eredeti gyűjtő (`/home/ndvi/crypto-bot`) futó folyamata és adatbázisa nem lett átállítva. Az eredeti scanner újraindítását és a napi gyűjtés utáni átállítást külön kell elvégezni. Ne indíts egy második scannert ugyanarra a gyűjtésre.
-
-### Architektúra és audit
-
-Persistált scanner snapshot → `StrategyEngine` → `StrategySignal` → `RiskManager` → `PortfolioService` cash-foglalás → `ExecutionService` → `PaperExecutionService` → fill/ledger → adatbázis.
-
-- `trading/domain.py`: közös, Decimal-alapú signal/risk/portfolio objektumok. BUY/SELL/HOLD; strength 0–1 relatív erősség, nem valószínűség.
-- `trading/strategy.py`: cserélhető, tiszta stratégia; nincs API vagy orderküldés.
-- `risk/manager.py`: tiszta engedélyezés és méretezés; nem küld ordert.
-- `portfolio/service.py`: belső könyvelés; nem kommunikál tőzsdével és nem küld ordert.
-- `execution/base.py`: place_order/cancel_order/get_order/get_positions interfész. `execution/paper.py`: kizárólag helyi paper végrehajtás. Későbbi adapter az orchestration execution_factory-jával cserélhető, a strategy és risk réteg átírása nélkül.
-- `trading/engine.py`: az adatbázisban már szereplő friss snapshotokat használja; nem indít Binance market data hívást.
-
-Minden signal a scanner snapshothoz kapcsolódik, a risk decision a signalhoz, az order a signal/riskhez, a fill az orderhez és positionhöz. Az auditoldal megmutatja a score-t, indikátorokat, paramétereket, döntéskori portfóliót, risk indoklást, fillt, fee/slippage költséget és zárást. A reset ezeket a paper rekordokat is törli; reset előtt exportálj/ments, ha meg akarod őrizni őket.
-
-### Adatvesztés nélküli migráció
-
-Alembic `0001_scanner`: meglévő scanner v1 séma adoptálása; `0002_paper`: új paper/monitoring táblák. A `schema_version` továbbra is **1**, így a régi scanner kompatibilis marad. Az extension verzióját az `alembic_version` tárolja. A migration nem írja át a meglévő score-okat, instrumentumokat vagy override-okat.
-
-A futó napi gyűjtés alatt ebben a munkamenetben nem migráltuk az eredeti adatbázist. Először másolaton ellenőrizd. Aktív SQLite esetén ne egyszerűen a `.db` fájlt másold: WAL miatt SQLite backupot használj, például:
+A fejlesztői web is `0.0.0.0:8000` címen figyel. LAN: `http://SZERVER_IP:8000`;
+helyben: `http://127.0.0.1:8000`. Egyedi bind:
 
 ```bash
-# Saját abszolút forrás/cél útvonalak; cél új adatbázis legyen.
-python3 - <<'PY'
+.venv/bin/market-scanner web --host 0.0.0.0 --port 8080
+```
+
+Production webhez Gunicorn:
+
+```bash
+.venv/bin/gunicorn --config gunicorn.conf.py 'crypto_bot.web.app:create_app()'
+```
+
+A közös Gunicorn konfiguráció a `WEB_HOST` / `WEB_PORT` értékeket használja, két workerrel.
+
+## Konfiguráció
+
+Források: beépített alapértékek → opcionális JSON config → environment.
+A `.env` csak a még nem beállított környezeti változókat tölti be.
+
+| Réteg | Példák / konfiguráció |
+| --- | --- |
+| Scanner | `SCANNER_TIMEFRAME=1h`, `SCANNER_NUMBER_OF_MARKETS=50`, `SCANNER_SCANNER_INTERVAL=300` |
+| Scanner JSON | `SCANNER_CONFIG=config/scanner.json`; [minta](config/scanner.example.json) |
+| Web | `WEB_HOST=0.0.0.0`, `WEB_PORT=8000`, `SCANNER_SECRET_KEY` |
+| Paper | `PAPER_<FIELD>`; például `PAPER_RISK_PER_TRADE_PCT=0.5` |
+| Paper JSON | `PAPER_CONFIG=config/paper.json`; [minta](config/paper.example.json) |
+| Monitoring | heartbeat 30s, stale threshold 120s, event retention 500 rekord |
+
+A teljes env minta: [.env.example](.env.example).
+Scanner mezők: [settings.py](crypto_bot/config/settings.py);
+paper mezők: [trading/config.py](crypto_bot/trading/config.py).
+A scanner listái és súlyai JSON-ként adhatók meg. Az időbélyegek UTC-ben tárolódnak és jelennek meg.
+
+## Paper stratégia és risk
+
+A referencia-stratégia a pipeline ellenőrzésére készült, profitoptimalizálás nélkül.
+Alap BUY feltételek: effective WATCH/PINNED, score ≥70, elérhető Δ4h ≥0,
+EMAfast > EMAslow, RSI 40–70, relative volume ≥1. Stop: entry reference − 2×ATR.
+Hiányzó momentum esetén alapból HOLD. A küszöbök konfigurálhatók.
+
+| Paper alapérték | Érték |
+| --- | --- |
+| Kezdő balance | 1000 USDT |
+| Risk / trade | 0.5% equity |
+| Max nyitott pozíció | 3 |
+| Max total / symbol exposure | 50% / 20% |
+| Daily loss / max drawdown limit | 2% / 5% |
+| Minimum order value | 10 USDT |
+| Fee / slippage | 0.1% / 0.05% |
+| Pyramiding | false; több pozíció ugyanarra a symbolra nem támogatott |
+
+A Risk Manager stop-distance alapján méretez, fee/slippage figyelembevételével,
+majd cash és exposure limitekkel korlátozza a méretet. A döntés és indoklása mentésre kerül.
+A portfolio külön kezeli a cash, reserved/available cash, PnL, fee és drawdown értékeket.
+A pénzügyi értékek Decimal-alapúak.
+
+**Ármodell:** a paper fill friss scanner snapshot záróárából készül, adverse slippage-pel.
+Nincs tick stream vagy intrabar stop; gap esetén a veszteség meghaladhatja a tervezett risket.
+Friss ár nélkül nincs kitalált fill, a manuális zárás is friss snapshotot igényel.
+Az OFF alatt feldolgozott snapshot ON után nem kerül újra feldolgozásra.
+
+Részletek: [Paper Trading — stratégia, risk és könyvelés](docs/PAPER_TRADING.md).
+A [Market Scanner dokumentáció](docs/MARKET_SCANNER.md) tartalmazza a változatlan
+score-képleteket, momentum-számítást, adatminőségi és watchlist szabályokat.
+
+## Dashboard és monitoring
+
+| Útvonal | Tartalom |
+| --- | --- |
+| `/` | Market Scanner, rangsorok, watchlist, override, instrument history |
+| `/paper` | Portfolio, open positions, trade/signal history, audit, ON/OFF, manual close |
+| `/services` | Szolgáltatások és belső komponensek, heartbeat, success/error, verzió, git metadata |
+| `/health` | Rövid, secret nélküli health válasz, HTTP 200 vagy 503 |
+| `/api/system/status` | Részletes system status, DB schema/migration verzió és események |
+| `/api/markets`, `/api/history/<symbol>` | Scanner read-only JSON adatok |
+
+ENGINE RUNNING és TRADING OFF egyszerre érvényes állapot. OFF mellett új pozíció
+nem nyílhat; meglévő pozíciók frissítése, stop/exit és manuális zárás működhet.
+Az ON/OFF, override és close műveletek CSRF-védett POST kérések.
+
+A hosszú életű scanner/paper process valódi, perzisztált heartbeatet ír. Régi heartbeat
+STALE státuszt okoz. Egy instrumentum hibája részleges scanner ciklust és DEGRADED
+figyelmeztetést eredményezhet; nem feltétlenül teljes ERROR. Példa: HYPEUSDT —
+`Need at least 400 closed candles`. A system events tárolása korlátozott.
+
+A dashboard egy operátori felület, saját bejelentkezés nélkül. Ezen a szerveren az
+Nginx Proxy Manager access control védi a domaint. A proxy célja a szerver LAN IP-je
+és port 8000; `0.0.0.0` a bind cím. Hitelesítés nélküli domain-kérés HTTP 401-et adhat.
+
+## Adatbázis, backup és frissítés
+
+Scanner táblák: instruments, scanner_runs, snapshots, decisions, overrides, override_events.
+Paper táblák: paper_account, strategy_signals, risk_decisions, paper_orders, paper_fills,
+paper_positions, paper_portfolio_snapshots, paper_processed_snapshots.
+Monitoring: service_status, system_events.
+
+Az auditkapcsolat: scanner snapshot → signal → risk decision → order → fill → position.
+SQLite WAL, foreign keys és 30s busy timeout aktív. Alembic:
+`0001_scanner → 0002_paper`; a scanner kompatibilitási `schema_version` értéke továbbra is 1.
+
+Meglévő éles rendszer frissítése előtt készíts konzisztens mentést, jegyezd fel a
+row countokat és override-okat, próbáld ki a migrációt a mentés másolatán, majd
+szabályosan állítsd le a DB-t író szolgáltatásokat. A meglévő `.venv` megtartható.
+A migráció után integrity check, adategyezőség és scanner `scan --once` próbakör szükséges.
+
+Aktív WAL adatbázisnál SQLite backup API-t használj, ne csak a `.db` fájlt másold:
+
+```python
 import sqlite3
 source = sqlite3.connect('file:/ABS/PATH/market.db?mode=ro', uri=True)
-target = sqlite3.connect('/ABS/PATH/market-backup.db')
+target = sqlite3.connect('/ABS/PATH/market-backup-YYYYMMDD-HHMMSS.db')
 source.backup(target)
+assert target.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
 target.close()
 source.close()
-PY
 ```
 
-Az új checkoutban/virtualenvben:
+A scanner historyt és override-okat sem migráció, sem paper reset nem törli.
+Automatikus scanner/paper history retention és ütemezett backup jelenleg nincs.
+PostgreSQL production használata még nem validált.
+
+A 2026-10-05-i éles átállítás és rollback leírása:
+[Production migration report](docs/PRODUCTION_MIGRATION.md).
+Az audit pillanatában 96→99 run, 4704→4851 snapshot, mind a négy override megmaradt;
+a gyűjtés azóta folytatódik. A korábbi GitHub push hitelesítési hibát SSH-ra váltással
+megoldottuk, a feature branch feltöltése sikeres.
+
+## Tesztek és további dokumentáció
 
 ```bash
-pip install -r requirements-dev.txt
-pip install -e .
-# .env: SCANNER_DATABASE_URL a migrálni kívánt adatbázisra mutasson.
-market-scanner migrate
-market-scanner paper init
-market-scanner paper status
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/pytest -q
 ```
 
-A migráció explicit parancs; a web vagy a scanner indítása önmagában nem migrál. Az account inicializálás idempotens és **OFF** állapotból indul. A paper táblák: paper_account, strategy_signals, risk_decisions, paper_orders, paper_fills, paper_positions, paper_portfolio_snapshots, paper_processed_snapshots. Monitoring: service_status, system_events. Sem a reset, sem a migration nem törli a scanner historyt/manual override-ot.
+A production migráció validációjakor **98 teszt sikeres**: scanner regresszió,
+paper signal/risk/portfolio/execution, reset, persistence, migráció, monitoring és web.
+A tesztek izolált, determinisztikus adatokat használnak, nem élő Binance API-t.
 
-### Indítás, leállítás, termináltól független futás
+- [Scanner audit](docs/AUDIT.md), [scanner validáció](docs/VALIDATION.md)
+- [Paper architektúraterv](docs/PAPER_PLAN.md), [paper validáció](docs/PAPER_VALIDATION.md)
+- [Éles migrációs riport](docs/PRODUCTION_MIGRATION.md)
 
-```bash
-market-scanner paper run        # engine fut, trading kezdetben OFF
-market-scanner paper on         # új pozíció nyitható
-market-scanner paper off        # új belépés tiltva; engine/stop/manual exit tovább működhet
-market-scanner paper status
-market-scanner paper run --once # egy auditált ciklus
-market-scanner paper close --position 1
-```
+Az auditok és validációs riportok a készítésük idején fennálló állapotot rögzítik;
+az aktuális indítási és üzemeltetési útmutató ez a README.
+A `legacy/` az eredeti programokat őrzi. A legacy RSI/EMA stratégia külön maradt;
+a régi config/CSV alapú programokat ne használd az új platform indítására.
 
-A paper run foreground módban SIGINT/SIGTERM-mel állítható le. A kill switch OFF állapota adatbázisban megmarad. Az engine tartós account lease-t használ: második engine vagy reset aktív lease mellett elutasított. Hard crash után a lease lejártáig várj (legalább 120s, loop interval alapján hosszabb lehet).
+Következő mérföldkő: paper ledger reconciliation és tartós megfigyelés,
+pontosabb ármodell, OHLCV/spread archiválás, history retention és ütemezett backup.
 
-Terminál bezárását túlélő indítás, sudo nélkül:
+## OPERATIONS — jelenlegi production szerver
 
-```bash
-./scripts/background.sh start paper
-./scripts/background.sh start web
-./scripts/background.sh status all
-./scripts/background.sh stop paper
-./scripts/background.sh stop web
-```
-
-A helper setsid + nohup segítségével külön sessiont indít, saját PID-fájlokkal és `data/services/` logokkal. Egy másik checkout folyamatait nem kezeli. A `start scanner` és `start all` **csak a jelenlegi gyűjtés utáni tervezett átállításkor** használható; most ne indítsd a meglévő gyűjtő mellé. A helper nem indít újra gépreboot után; arra systemd ajánlott.
-
-Productionben a három systemd unit ugyanazt az élő adatbázist használja.
-A telepítési és üzemeltetési parancsokat lásd az OPERATIONS részben.
-Ne indíts a helperrel második scannert vagy engine-t a systemd szolgáltatások mellé.
-
-### Referencia-stratégia
-
-Entry feltételek: effective WATCH/PINNED, score ≥70, elérhető Δ4h ≥0, EMAfast > EMAslow, RSI 40–70, relative volume ≥1. Stop = reference price − 2×ATR. Exit: score <45 vagy bearish EMA, application stop, opcionális take profit vagy manual close. Hiányzó momentum nem kitalált nulla: alapból HOLD. A `require_delta=false` csak kifejezett konfigurációval kapcsolható ki.
-
-Minden küszöb konfigurálható `PAPER_CONFIG` JSON-fájllal vagy `PAPER_<FIELD>` environment változóval. Példa: `config/paper.example.json`; az env felülírja a JSON-t. A konfiguráció minden signal mellett persistál. Opcionális take profit: `take_profit_r_multiple`, alapból 0 = kikapcsolva. Az alkalmazás nem optimalizál a profitra.
-
-### Risk és portfolio
-
-| Paraméter | Default |
+| Elem | Production beállítás |
 | --- | --- |
-| initial_paper_balance | 1000 USDT |
-| risk_per_trade_pct | 0.5% |
-| max_open_positions | 3 |
-| max_total_exposure_pct | 50% |
-| max_symbol_exposure_pct | 20% |
-| daily_loss_limit_pct | 2% |
-| max_drawdown_limit_pct | 5% |
-| minimum_order_value | 10 quote egység |
-| paper_fee_pct / paper_slippage_pct | 0.1% / 0.05% |
-| pyramiding | false; true nem támogatott |
-| loop_interval / max_snapshot_age_seconds | 15s / 900s |
+| Checkout | `/home/ndvi/crypto-bot` |
+| Branch | `feature/trading-core-paper` |
+| SQLite | `/home/ndvi/crypto-bot/data/market.db` |
+| Web | Gunicorn, `0.0.0.0:8000`, `https://crypto.vagilak.hu` |
+| Futási mód | **ndvi felhasználói systemd**, `linger=yes` |
+| Unitok | `crypto-market-scanner`, `crypto-web`, `crypto-paper` |
 
-A `.env.example` tartalmazza az env neveket (például `PAPER_RISK_PER_TRADE_PCT`, `PAPER_PAPER_FEE_PCT`). Egyetlen quote account működik, ezért USDC snapshotot nem értelmezünk USDT-s árként. Quote asset váltás explicit resetet igényel.
-
-Kockázati keret = equity × risk%. Quantity = keret / egységnyi stop-veszteség; belépési slippage, stopnál várható kilépési slippage és mindkét fee beleszámít. Majd cash, total/symbol exposure korlátozza a méretet. Költség nélküli 100→98 stop és 1000 equity mellett 0.5% riskből 250 notional adódik, de a default 20%-os symbol cap ezt legfeljebb 200-ra csökkenti. A méret lefelé kerekített; minimum alatti order elutasított. SELL meglévő pozícióra akkor is engedélyezett, ha a belépési limit vagy OFF blokkolja az új BUY-t.
-
-Cash a foglaláskor nem fogy el, available cash = cash − reserved; fillkor a foglalás felszabadul és a tényleges notional+fee levonódik. SELL-kor notional−fee kerül vissza cashbe. Realized PnL = kilépési nettó bevétel − teljes belépési költség. Equity = cash + nyitott pozíciók megfigyelt piaci értéke; unrealized PnL tartalmazza a belépési fee-t. Fees külön is kimutathatók. Napi PnL a UTC napi equity-változás; a nap első feldolgozásakor a korábbi mark szerinti equity az alap. Drawdown százalék a megfigyelt peak equityhez képest; maximum történetileg tárolódik. A maximum drawdown limit resetig blokkolja a belépést, a napi limit UTC napi átfordulással újraalapozódik.
-
-Market order lifecycle: CREATED → FILLED/CANCELLED/REJECTED. A fill a scanner snapshot záróárához képest adverse slippage-pel történik. Pending BUY cash-t foglalhat; cancel/OFF felszabadítja. Fill előtt ismét ellenőrzünk, így időközben megváltozott limitek vagy pozíció nem írják felül a kontrollokat. Részleges fill/partial SELL nincs ebben a verzióban.
-
-A ledger Decimal értékeket használ, 12 tizedesre lefelé kerekítve; SQLite-ban szövegként tároljuk őket, így a SQLite floating-point affinity nem veszít pontosságot. PostgreSQL-ben NUMERIC a megfelelő típus. Minden paper ciklus és manuális művelet egy sorosított ledger tranzakció. Egy scanner snapshot stratégiai feldolgozása egyszeri; OFF alatt feldolgozott snapshotot ON után sem játszunk vissza. Új belépéshez új snapshot kell. Létező pozícióhoz nincs újabb BUY/pyramiding. Stop/take-profit exit után ugyanabban a ciklusban nincs új belépés.
-
-**Ármodell korlát:** a scanner historikus/lezárt gyertya pillanatképét használjuk, nem tick streamet. Stop nem lát intrabar low-t vagy a két megfigyelés közötti árat; gap és késleltetés miatt a realizált veszteség nagyobb lehet a tervezett risknél. Friss ár hiányában a pozíció nem kap kitalált fillt; manual close is vár a friss snapshotra. A stale threshold ezért számít, és ez a referencia pipeline nem profit-backtest.
-
-### Paper dashboard és reset
-
-`/paper`: portfolio, ENGINE státusz és külön TRADING ON/OFF, open positions, kézi zárás, legutóbbi 200 trade/signal és auditoldalak. A scanner nézet külön megmarad. Az ON/OFF és zárás CSRF-védett POST; GET nem kereskedik. Nincs live kapcsoló. Manuális zárás `exit_reason=MANUAL`. ON csak a paper accountot aktiválja, nem indít OS processt.
-
-Biztonságos reset, CLI-ből:
+A szolgáltatások terminálbezárás után is futnak és bootkor indulnak. Mindhárom azonos
+checkoutból és közös DB-vel dolgozik. A `/home/ndvi/crypto-bot-paper` fejlesztési checkout;
+a korábbi 8001-es preview nem production. A migráció után a paper trading OFF maradt;
+a mindenkori állapotot a status parancs mutatja, service restart megőrzi azt.
 
 ```bash
-market-scanner paper off
-# Előbb állítsd le a paper engine-t: Ctrl+C / helper stop / systemctl stop.
-market-scanner paper reset --confirm RESET-PAPER
-```
-
-Megerősítés nélkül, trading ON mellett vagy aktív engine lease esetén a reset elutasított. Csak a paper positions/orders/fills/signals/risk/snapshots/processed ledger törlődik; a bank konfigurált kezdő tőkével OFF állapotba kerül. Scanner score/history és manuális watchlist megmarad.
-
-### System Overview / monitoring
-
-`/services`: Market Scanner, Web Dashboard, Strategy Engine, Risk Manager, Portfolio / Wallet, Paper Trading Engine, Database. Name/type/status/version/git metadata, started_at, heartbeat, last_success/error, restart count ahol ismert. Belső modulok Componentként szerepelnek, process heartbeat nélkül. Az alkalmazás központi verziója: `crypto_bot/version.py`; package metadata ezt használja.
-
-Heartbeat: `MONITOR_HEARTBEAT_INTERVAL=30`, `MONITOR_STALE_THRESHOLD=120`; háttérszál írja service_statusba. A scanner és paper engine következő indításkor kapja meg. A most futó régi scanner állapota **inferred from scanner runs**, heartbeatje és verziója ismeretlen; a scanner-intervalhoz igazított freshnessből következtetünk, és ezt jelöljük. Részleges instrumentumhiba DEGRADED, discovery/cycle hiba ERROR. A Web Dashboard a worker heartbeatjeit aggregálja; pontos OS restart count nem ismert.
-
-Healthy zöld, paused sárga, degraded narancs, error/stale piros, stopped szürke. A főoldal összesítést és ERROR/STALE esetén figyelmeztetést mutat. Paper engine RUNNING és paper trading OFF egyszerre érvényes állapot. A health nem változtat score-t, selectiont, risk képletet vagy pénzügyi könyvelést.
-
-`/health`: rövid, secret nélküli 200/503 válasz. `/api/system/status`: részletes komponensek/DB health/version/event history. A Database type/name, scanner schema és Alembic revision, connection állapot és legutóbbi ismert üzleti írás látható; credential nincs a válaszban. Az events táblában default maximum 500 rekord marad (`MONITOR_EVENT_RETENTION_COUNT`), UI legutóbbi 30. A paper/score history retenció külön jövőbeli fejlesztés.
-
-A dashboard továbbra is operátori felület, saját login nincs; Nginx Proxy Manageren az operátori hozzáférést az előtte lévő access control biztosítsa. Binance trading credentialre nincs szükség.
-
-### Validáció és következő lépés
-
-A tesztek fixed Decimal értékeket, mock market data-t és külön SQLite adatbázisokat használnak. Scanner regresszió, migráció/persistence, signal, risk sizing/limitek, cash/reserved/PnL, fee/slippage, buy/sell/cancel/reject, stop/TP/manual, OFF, replay/duplicate, reset, rollback, heartbeat/health/event retention és web kontroll ellenőrzése szerepel bennük. Részletes futási eredmény: `docs/PAPER_VALIDATION.md`.
-
-Következő mérföldkő: a napi gyűjtés utáni kontrollált átállítás; paper adatok megfigyelése és ledger reconciliation; pontosabb árstream/intrabar stop modell; historikus OHLCV/spread archiválás, retention/backup és PostgreSQL integration. Live execution továbbra is külön feladat, itt nincs implementálva.
-
-
-## OPERATIONS — production on this host
-
-Production checkout: `/home/ndvi/crypto-bot`; SQLite database:
-`/home/ndvi/crypto-bot/data/market.db`.
-All three processes read the same `.env` with
-`SCANNER_DATABASE_URL=sqlite:////home/ndvi/crypto-bot/data/market.db`,
-`WEB_HOST=0.0.0.0`, `WEB_PORT=8000`. Preserve the remaining scanner settings.
-Gunicorn serves `/`, `/paper`, `/services`, `/health`, `/api/system/status` on port 8000.
-The existing Nginx Proxy Manager mapping for `https://crypto.vagilak.hu` is unchanged.
-The separate `/home/ndvi/crypto-bot-paper` checkout is development only.
-
-The initial migration uses **user systemd services under ndvi**, with linger enabled.
-These survive terminal closure and start at boot. Their unit names match the system
-service templates, but commands require `--user`. No Python process runs as root.
-User units cannot depend on the system `network-online.target`; scanner retries
-failed cycles when the network becomes available. The system templates include the
-network dependency and stronger filesystem protection.
-
-```bash
-# STATUS / LOG
+# STATUS
 systemctl --user status crypto-market-scanner crypto-web crypto-paper
 systemctl --user is-enabled crypto-market-scanner crypto-web crypto-paper
-journalctl --user -u crypto-market-scanner -f
-journalctl --user -u crypto-web -f
-journalctl --user -u crypto-paper -f
+loginctl show-user ndvi -p Linger
 
-# START / STOP / RESTART (select only the services you need)
+# START / STOP / RESTART
 systemctl --user start crypto-market-scanner crypto-web crypto-paper
 systemctl --user stop crypto-paper crypto-web crypto-market-scanner
 systemctl --user restart crypto-web
 
-# PAPER — engine running does not mean trading enabled
+# LOG
+journalctl --user -u crypto-market-scanner -f
+journalctl --user -u crypto-web -f
+journalctl --user -u crypto-paper -f
+
+# PAPER
 cd /home/ndvi/crypto-bot
 .venv/bin/market-scanner paper status
 .venv/bin/market-scanner paper off
-# Enable entries only when intentionally requested by the operator:
+# Csak tudatos operátori engedélyezéskor:
 .venv/bin/market-scanner paper on
+# Manuális zárás a dashboardon látható position ID-val:
+.venv/bin/market-scanner paper close --position 1
 
-# RESET — explicit confirmation; scanner history and overrides remain intact
+# RESET — csak a paper ledger; előbb engine stop
 .venv/bin/market-scanner paper off
 systemctl --user stop crypto-paper
 .venv/bin/market-scanner paper reset --confirm RESET-PAPER
 systemctl --user start crypto-paper
+
+# WEB BIND / HEALTH
+ss -ltnp | grep :8000
+curl http://127.0.0.1:8000/health
 ```
 
-The fresh production paper account starts with 1000 USDT and **TRADING OFF**.
-Restart preserves the stored ON/OFF value. NO LIVE TRADING IMPLEMENTED.
-Do not use `scripts/background.sh start` for services already managed by systemd.
-To install user units on this host, copy `deploy/user/*.service` to
-`~/.config/systemd/user/`, run `systemctl --user daemon-reload`, then
-`systemctl --user enable --now crypto-market-scanner crypto-web crypto-paper`.
-Enable linger with `loginctl enable-linger ndvi` if not already enabled.
+### User unitok telepítése ezen a szerveren
 
-Optional administrator handover to system services, after reviewing the units:
+A minták a fenti abszolút útvonalakhoz készültek. Más gépen előbb igazítsd őket;
+telepítés előtt állítsd le az esetleges régi/helper folyamatokat, hogy ne legyen duplikáció.
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp deploy/user/*.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+loginctl enable-linger ndvi
+systemctl --user enable --now crypto-market-scanner crypto-web crypto-paper
+```
+
+A user unitok az ndvi user manager identitását öröklik. A system
+`network-online.target` nem kapcsolható hozzájuk; hálózati hiba után a scanner
+következő ciklusban újrapróbálkozik.
+
+### Opcionális váltás rendszerszintű systemdre
+
+A [system unit minták](deploy/) explicit `User=ndvi`, megfelelő working directory,
+venv, network-online dependency, restart és journald beállításokat tartalmaznak.
+Adminisztrátori váltás:
 
 ```bash
 sudo /home/ndvi/crypto-bot/scripts/install-production-systemd.sh
-# Thereafter use system commands without --user:
+# Váltás UTÁN már --user nélkül:
 systemctl status crypto-market-scanner crypto-web crypto-paper
 sudo systemctl restart crypto-web
 journalctl -u crypto-market-scanner -f
 ```
 
-The installer stops/disables the user units before enabling the system units and
-preserves the database and the paper ON/OFF setting. Do not run both sets together.
-Backups and the exact rollback plan are under
-`/home/ndvi/crypto-bot-backups/20261005-194519-UTC/`; see also
-[the production migration report](docs/PRODUCTION_MIGRATION.md).
+A telepítő először leállítja/letiltja a user unitokat, majd engedélyezi a system unitokat.
+Ne futtasd egyszerre a két unitkészletet. A [background helper](scripts/background.sh)
+fejlesztési alternatíva; ne indíts vele process-t a systemd által kezelt mellé.
+
+A megőrzött migration backupok és a részletes `ROLLBACK.md` helye:
+`/home/ndvi/crypto-bot-backups/20261005-194519-UTC/`.
