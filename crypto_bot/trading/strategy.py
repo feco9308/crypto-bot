@@ -21,7 +21,11 @@ class ReferenceStrategy:
             failures = []
             if c.watch_state == "IGNORE":
                 failures.append("user IGNORE override")
-            if s.require_watch and c.watch_state not in {"WATCH", "PINNED"}:
+            if not (c.algorithm_watch or c.manual_trade_enabled):
+                failures.append(
+                    "manual trading permission required; watchlist is observation only"
+                )
+            if s.require_watch and not (c.algorithm_watch or c.manual_trade_enabled):
                 failures.append("outside effective watchlist")
             if c.score < s.min_score:
                 failures.append("score below entry threshold")

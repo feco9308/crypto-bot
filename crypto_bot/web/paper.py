@@ -89,7 +89,24 @@ def register_paper(app, database, scanner_settings):
             positions=positions,
             trades=trades,
             signals=signals,
+            permissions=repo.permissions() if status.get("initialized") else [],
         )
+
+    @app.post("/paper/permissions")
+    def paper_permission():
+        csrf_check()
+        symbol = request.form.get("symbol", "").strip().upper()
+        value = request.form.get("enabled")
+        if value not in {"ON", "OFF"}:
+            abort(400, "Expected ON or OFF")
+        try:
+            repo.set_manual_trade_enabled(symbol, value == "ON")
+        except (ValueError, RuntimeError) as exc:
+            abort(400, str(exc))
+        monitor.event(
+            "Paper Trading Engine", f"Manual entry permission {symbol}: {value}"
+        )
+        return redirect(url_for("paper"))
 
     @app.post("/paper/control")
     def paper_control():

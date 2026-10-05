@@ -5,12 +5,13 @@ class RiskManager:
     def __init__(self, settings):
         self.settings = settings
 
-    def evaluate(self, signal, portfolio, trading_enabled=True):
+    def evaluate(self, signal, portfolio, trading_enabled=True, entry_price=None):
         s, p = self.settings, portfolio
 
         def reject(reason):
             return RiskDecision(False, signal.symbol, reasons=(reason,))
 
+        reference = signal.entry_reference if entry_price is None else D(entry_price)
         if signal.action == "SELL":
             position = next(
                 (pos for pos in p.positions if pos.symbol == signal.symbol), None
@@ -20,7 +21,7 @@ class RiskManager:
             return RiskDecision(
                 True,
                 signal.symbol,
-                position_notional=q(position.quantity * signal.entry_reference),
+                position_notional=q(position.quantity * reference),
                 quantity=position.quantity,
                 reasons=("long position exit permitted",),
             )
@@ -46,10 +47,13 @@ class RiskManager:
             return reject("drawdown limit reached")
         if p.equity <= 0:
             return reject("nonpositive portfolio equity")
-        entry = signal.entry_reference * (1 + s.paper_slippage_pct / D(100))
+        entry = reference * (1 + s.paper_slippage_pct / D(100))
         stop = signal.stop_reference
-        if stop is None or not 0 < stop < entry:
+        if stop is None or not 0 < stop < reference:
             return reject("invalid stop distance")
+        tp = getattr(signal, "take_profit_price", None)
+        if tp is not None and tp <= reference:
+            return reject("take profit already reached at current quote")
         # Includes anticipated entry/exit costs and adverse exit slippage in risk budget.
         exit_fill = stop * (1 - s.paper_slippage_pct / D(100))
         fee = s.paper_fee_pct / D(100)

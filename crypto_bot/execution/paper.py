@@ -13,13 +13,40 @@ from crypto_bot.storage.paper_models import (
     SignalRecord,
 )
 from crypto_bot.trading.domain import ZERO, D, q
+from crypto_bot.trading.permissions import entry_permission
 
 log = logging.getLogger(__name__)
 
 
 class PaperExecutionService:
-    def __init__(self, session, portfolio, settings):
+    def __init__(self, session, portfolio, settings, quotes=None):
         self.session, self.portfolio, self.settings = session, portfolio, settings
+        self.quotes = quotes or {}
+
+    def current_quote(self, symbol, now):
+        quote = self.quotes.get(symbol)
+        return (
+            quote
+            if quote
+            and quote.symbol == symbol
+            and quote.fresh(now, self.settings.max_quote_age_seconds)
+            else None
+        )
+
+    def entry_allowed(self, symbol, now):
+        return entry_permission(
+            self.session, symbol, now, self.settings.max_snapshot_age_seconds
+        )["entry_eligible"]
+
+    def marks_complete(self, now):
+        return all(
+            p.mark_quote
+            and p.marked_at
+            and 0
+            <= (now - p.marked_at).total_seconds()
+            <= self.settings.max_quote_age_seconds
+            for p in self.portfolio.positions()
+        )
 
     def create_order(self, signal_id, risk_id, now):
         signal = self.session.get(SignalRecord, signal_id)
@@ -31,6 +58,7 @@ class PaperExecutionService:
         )
         if existing:
             return existing
+        quote = self.current_quote(signal.symbol, now)
         order = PaperOrder(
             signal_id=signal_id,
             risk_id=risk_id,
@@ -38,7 +66,8 @@ class PaperExecutionService:
             side=signal.action,
             status="CREATED",
             quantity=risk.quantity,
-            reference_price=signal.entry_reference,
+            reference_price=quote.price(signal.action) if quote else ZERO,
+            quote=quote.audit() if quote else None,
             created_at=now,
             updated_at=now,
             reserved_amount=ZERO,
@@ -52,7 +81,15 @@ class PaperExecutionService:
             or signal.action not in {"BUY", "SELL"}
             or risk.quantity <= 0
         ):
-            reason = "Risk not approved for executable signal"
+            reason = (
+                "; ".join(risk.reasons) or "Risk not approved for executable signal"
+            )
+        elif quote is None:
+            reason = "Fresh public quote unavailable"
+        elif signal.action == "BUY" and not self.entry_allowed(signal.symbol, now):
+            reason = "No entry permission; watchlist is observation only"
+        elif signal.action == "BUY" and not self.marks_complete(now):
+            reason = "Fresh portfolio marks unavailable"
         elif signal.action == "BUY" and not self.portfolio.account.enabled:
             reason = "paper trading OFF"
         elif signal.action == "BUY" and any(
@@ -67,12 +104,12 @@ class PaperExecutionService:
         if not reason and signal.action == "BUY":
             if (
                 signal.stop_reference is None
-                or not 0 < signal.stop_reference < signal.entry_reference
+                or not 0 < signal.stop_reference < order.reference_price
             ):
                 reason = "invalid BUY stop"
             else:
                 price = q(
-                    signal.entry_reference
+                    order.reference_price
                     * (1 + self.settings.paper_slippage_pct / D(100))
                 )
                 amount = q(risk.quantity * price) + q(
@@ -94,6 +131,22 @@ class PaperExecutionService:
         if order.status != "CREATED":
             return order
         signal = self.session.get(SignalRecord, order.signal_id)
+        quote = self.current_quote(order.symbol, now)
+        if quote is None or (
+            order.side == "BUY"
+            and (
+                not self.entry_allowed(order.symbol, now)
+                or not self.marks_complete(now)
+            )
+        ):
+            self.portfolio.release(order.reserved_amount)
+            order.status, order.reason, order.updated_at = (
+                "REJECTED",
+                "Fresh quote/marks or entry permission unavailable at fill",
+                now,
+            )
+            return order
+        order.reference_price, order.quote = quote.price(order.side), quote.audit()
         if order.side == "BUY" and (
             not self.portfolio.account.enabled
             or any(p.symbol == order.symbol for p in self.portfolio.positions())
@@ -111,7 +164,10 @@ class PaperExecutionService:
                 view, reserved_cash=view.reserved_cash - order.reserved_amount
             )
             current_risk = RiskManager(self.settings).evaluate(
-                signal, view, self.portfolio.account.enabled
+                signal,
+                view,
+                self.portfolio.account.enabled,
+                entry_price=order.reference_price,
             )
             if not current_risk.approved or order.quantity > current_risk.quantity:
                 self.portfolio.release(order.reserved_amount)
@@ -145,6 +201,10 @@ class PaperExecutionService:
             if order.side == "BUY"
             else self.portfolio.record_sell
         )(order, signal, price, fee, now)
+        if order.side == "BUY":
+            self.portfolio.mark(
+                {order.symbol: quote.bid}, now, {order.symbol: quote.audit()}
+            )
         self.session.add(
             PaperFill(
                 order_id=order.id,

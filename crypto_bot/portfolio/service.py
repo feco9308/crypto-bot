@@ -1,5 +1,7 @@
 """Internal ledger, not a wallet or order sender."""
 
+from datetime import datetime
+
 from sqlalchemy import select
 
 from crypto_bot.storage.paper_models import (
@@ -60,7 +62,7 @@ class PortfolioService:
             a.max_drawdown,
         )
 
-    def mark(self, prices, now):
+    def mark(self, prices, now, quote_audits=None):
         a = self.account
         # At UTC day rollover anchor previous marked equity (before the new price).
         if a.day != now.date().isoformat():
@@ -71,6 +73,12 @@ class PortfolioService:
                 if price <= 0:
                     raise ValueError("Invalid mark price")
                 p.current_price = q(price)
+                p.mark_quote = (quote_audits or {}).get(p.symbol)
+                p.marked_at = (
+                    datetime.fromisoformat(p.mark_quote["received_at"].rstrip("Z"))
+                    if p.mark_quote
+                    else None
+                )
                 p.unrealized_pnl = q(
                     q(p.current_price * p.quantity) - p.notional - p.entry_fee
                 )
@@ -168,7 +176,7 @@ class PortfolioService:
         self.update_drawdown()
         return p
 
-    def snapshot(self, now):
+    def snapshot(self, now, quote_status=None):
         self.update_drawdown()
         v = self.view()
         self.session.add(
@@ -185,6 +193,7 @@ class PortfolioService:
                 daily_pnl=v.daily_pnl,
                 max_drawdown=v.max_drawdown,
                 open_positions=len(v.positions),
+                quote_status=quote_status,
             )
         )
         return v

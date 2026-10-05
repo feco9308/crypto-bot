@@ -34,6 +34,7 @@ class MarketContext:
     watch_state: str
     algorithm_watch: bool
     features: dict = field(default_factory=dict)
+    manual_trade_enabled: bool = False
 
 
 @dataclass(frozen=True)

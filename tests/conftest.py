@@ -72,3 +72,38 @@ def database(settings):
     db.initialize()
     yield db
     db.engine.dispose()
+
+
+class FixtureQuotes:
+    """Fixed public quote fixture; never makes HTTP requests.
+
+    Legacy pipeline fixtures seed quotes alongside candles at equal prices.
+    Quote-separation tests inject independently chosen bid/ask observations.
+    """
+
+    def __init__(self, database):
+        self.database = database
+
+    def get_quotes(self, symbols):
+        from crypto_bot.trading.quotes import MarketQuote
+
+        return {
+            symbol: MarketQuote(
+                symbol, price, price, self.database.test_quote_time, "FIXED_TEST"
+            )
+            for symbol, price in getattr(self.database, "test_quotes", {}).items()
+            if symbol in symbols
+        }
+
+
+@pytest.fixture
+def paper_quote_fixture(monkeypatch):
+    from crypto_bot.trading.engine import PaperEngine
+
+    original = PaperEngine.__init__
+
+    def init(self, repository, *args, **kwargs):
+        kwargs.setdefault("quote_provider", FixtureQuotes(repository.database))
+        original(self, repository, *args, **kwargs)
+
+    monkeypatch.setattr(PaperEngine, "__init__", init)

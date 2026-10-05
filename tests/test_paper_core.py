@@ -3,7 +3,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from conftest import NOW, market
+from conftest import NOW, FixtureQuotes, market
 from sqlalchemy import func, select
 
 from crypto_bot.config.settings import Settings
@@ -33,6 +33,8 @@ from crypto_bot.trading.domain import (
 from crypto_bot.trading.engine import PaperEngine
 from crypto_bot.trading.repository import PaperRepository
 from crypto_bot.trading.strategy import ReferenceStrategy
+
+pytestmark = pytest.mark.usefixtures("paper_quote_fixture")
 
 
 def signal(action="BUY", symbol="BTCUSDT", price="100", stop="98"):
@@ -123,6 +125,8 @@ def seed(
         {},
         1,
     )
+    db.test_quotes = getattr(db, "test_quotes", {}) | {symbol: price}
+    db.test_quote_time = when
     return run
 
 
@@ -365,7 +369,12 @@ def test_reservation_cancel_and_fill_lifecycle(paper, database):
         )
         s.add(risk)
         s.flush()
-        ex = PaperExecutionService(s, ledger, repo.settings)
+        ex = PaperExecutionService(
+            s,
+            ledger,
+            repo.settings,
+            quotes=FixtureQuotes(database).get_quotes({"BTCUSDT"}),
+        )
         order = ex.create_order(record.id, risk.id, NOW)
         assert order.status == "CREATED"
         assert ledger.view().reserved_cash == D("100.15005")

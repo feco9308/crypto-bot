@@ -1,4 +1,4 @@
-"""Database-only web app. No market requests or scanner scheduling in workers."""
+"""DB-only GET views; explicit paper manual-close POST fetches a public quote."""
 
 import hmac
 import secrets

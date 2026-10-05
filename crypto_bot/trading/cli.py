@@ -18,11 +18,24 @@ def paper_main(argv):
         description="Paper trading only; NO LIVE TRADING IMPLEMENTED"
     )
     parser.add_argument(
-        "command", choices=["init", "status", "run", "on", "off", "close", "reset"]
+        "command",
+        choices=[
+            "init",
+            "status",
+            "run",
+            "on",
+            "off",
+            "close",
+            "reset",
+            "permissions",
+            "allow",
+            "deny",
+        ],
     )
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--position", type=int)
     parser.add_argument("--confirm")
+    parser.add_argument("--symbol")
     args = parser.parse_args(argv)
     scanner = Settings.load()
     settings = PaperSettings.load()
@@ -44,6 +57,19 @@ def paper_main(argv):
             "Paper Trading Engine", f"Paper trading {args.command.upper()} by operator"
         )
         print(json.dumps(repo.status()))
+        return
+    if args.command == "permissions":
+        print(json.dumps(repo.permissions()))
+        return
+    if args.command in {"allow", "deny"}:
+        if not args.symbol:
+            parser.error("--symbol is required")
+        repo.set_manual_trade_enabled(args.symbol.upper(), args.command == "allow")
+        monitor.event(
+            "Paper Trading Engine",
+            f"Manual trade permission {args.command}: {args.symbol.upper()}",
+        )
+        print(json.dumps(repo.permissions()))
         return
     engine = PaperEngine(repo, scanner)
     if args.command == "close":
@@ -73,12 +99,15 @@ def paper_main(argv):
             try:
                 repo.lease(owner, utcnow(), duration)
                 result = engine.run_once(lease_owner=owner)
-                heartbeat.result(
-                    "RUNNING" if result["fresh_markets"] else "DEGRADED",
-                    None
-                    if result["fresh_markets"]
-                    else "No fresh scanner observations; entries/exits waiting for data",
+                warning = (
+                    "Public quotes missing/stale: "
+                    + ", ".join(result["missing_quotes"])
+                    if result["missing_quotes"]
+                    else "No fresh closed 1h scanner observations"
+                    if not result["fresh_markets"]
+                    else None
                 )
+                heartbeat.result("DEGRADED" if warning else "RUNNING", warning)
                 if args.once:
                     print(json.dumps(result))
                     return

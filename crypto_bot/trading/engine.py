@@ -1,4 +1,4 @@
-"""Consumes persisted scanner data only. No Binance or other network imports."""
+"""Closed 1h strategy inputs; independent public quotes for marks and paper fills."""
 
 import logging
 from dataclasses import asdict, replace
@@ -22,8 +22,11 @@ from crypto_bot.storage.paper_models import (
     ProcessedSnapshot,
     RiskRecord,
     SignalRecord,
+    SymbolTradePermission,
 )
-from crypto_bot.trading.domain import D, MarketContext, StrategySignal
+from crypto_bot.trading.domain import D, MarketContext, RiskDecision, StrategySignal
+from crypto_bot.trading.permissions import entry_permission
+from crypto_bot.trading.quotes import BinancePublicQuotes, MarketQuote
 from crypto_bot.trading.strategy import ReferenceStrategy, StrategyEngine
 
 log = logging.getLogger(__name__)
@@ -50,6 +53,7 @@ class PaperEngine:
         scanner_settings,
         strategy=None,
         execution_factory=PaperExecutionService,
+        quote_provider=None,
     ):
         self.repository, self.settings, self.scanner_settings = (
             repository,
@@ -59,12 +63,15 @@ class PaperEngine:
         self.strategy = StrategyEngine(strategy or ReferenceStrategy(self.settings))
         self.risk = RiskManager(self.settings)
         self.execution_factory = execution_factory
+        self.quote_provider = quote_provider or BinancePublicQuotes(
+            scanner_settings.api_url, self.settings.quote_timeout
+        )
 
     def contexts(self, session, now):
         run = session.scalar(
             select(ScannerRun)
             .where(
-                ScannerRun.timeframe == self.scanner_settings.timeframe,
+                ScannerRun.timeframe == "1h",
                 ScannerRun.status.in_(["complete", "partial"]),
             )
             .order_by(ScannerRun.id.desc())
@@ -84,7 +91,7 @@ class PaperEngine:
                     select(Snapshot)
                     .where(
                         Snapshot.symbol == position.symbol,
-                        Snapshot.timeframe == self.scanner_settings.timeframe,
+                        Snapshot.timeframe == "1h",
                     )
                     .order_by(Snapshot.timestamp.desc())
                     .limit(1)
@@ -110,6 +117,7 @@ class PaperEngine:
                 )
             )
             auto = bool(decision and decision.algorithm_watch)
+            permission = session.get(SymbolTradePermission, symbol)
             delta = snapshot.score_momentum.get(f"delta_{self.settings.delta_window}h")
             # No rescaling/recomputation of any scanner score.
             if any(
@@ -138,6 +146,7 @@ class PaperEngine:
                             "instrument_active": instrument.active,
                             "instrument_spot": instrument.spot,
                         },
+                        bool(permission and permission.manual_trade_enabled),
                     )
                 )
             except ValueError:
@@ -147,7 +156,11 @@ class PaperEngine:
                 )
         return result
 
-    def apply_signal(self, session, signal, portfolio, now, exit_reason=None):
+    def apply_signal(self, session, signal, portfolio, now, quotes, exit_reason=None):
+        quotes = self.fresh_quotes(quotes, now)
+        permission = entry_permission(
+            session, signal.symbol, now, self.settings.max_snapshot_age_seconds
+        )
         record = SignalRecord(
             snapshot_id=signal.snapshot_id,
             timestamp=now,
@@ -159,7 +172,8 @@ class PaperEngine:
             take_profit_price=signal.take_profit_price,
             strategy_name=signal.strategy_name,
             reasons=list(signal.reasons),
-            configuration=self.settings.public_dict(),
+            configuration=self.settings.public_dict()
+            | {"entry_permission": permission},
             exit_reason=exit_reason,
         )
         session.add(record)
@@ -174,8 +188,33 @@ class PaperEngine:
                 }
             },
         )
-        view = portfolio.view()
-        decision = self.risk.evaluate(signal, view, portfolio.account.enabled)
+        quote = quotes.get(signal.symbol)
+        missing_marks = any(p.symbol not in quotes for p in portfolio.positions())
+        if signal.action == "BUY" and not permission["entry_eligible"]:
+            decision = RiskDecision(
+                False,
+                signal.symbol,
+                reasons=("No entry permission; watchlist is observation only",),
+            )
+        elif signal.action == "BUY" and not portfolio.account.enabled:
+            decision = RiskDecision(
+                False, signal.symbol, reasons=("paper trading OFF",)
+            )
+        elif signal.action != "HOLD" and not quote:
+            decision = RiskDecision(
+                False, signal.symbol, reasons=("Fresh public quote unavailable",)
+            )
+        elif signal.action == "BUY" and missing_marks:
+            decision = RiskDecision(
+                False, signal.symbol, reasons=("Fresh portfolio marks unavailable",)
+            )
+        else:
+            decision = self.risk.evaluate(
+                signal,
+                portfolio.view(),
+                portfolio.account.enabled,
+                entry_price=quote.price(signal.action) if quote else None,
+            )
         risk = RiskRecord(
             signal_id=record.id,
             approved=decision.approved,
@@ -184,7 +223,8 @@ class PaperEngine:
             quantity=decision.quantity,
             stop_distance_pct=decision.stop_distance_pct,
             reasons=list(decision.reasons),
-            portfolio=portfolio_audit(view),
+            portfolio=portfolio_audit(portfolio.view()),
+            execution_quote=quote.audit() if quote else None,
         )
         session.add(risk)
         session.flush()
@@ -199,17 +239,55 @@ class PaperEngine:
                 }
             },
         )
-        # Rejected BUY/SELL orders are auditable too; HOLD has no order.
         if signal.action != "HOLD":
             return self.execution_factory(
-                session, portfolio, self.settings
+                session, portfolio, self.settings, quotes=quotes
             ).place_order(record.id, risk.id, now)
         return None
 
+    def fetch_quotes(self, symbols):
+        # This method is called before acquiring the ledger write transaction.
+        try:
+            quotes = self.quote_provider.get_quotes(set(symbols))
+            return quotes if isinstance(quotes, dict) else {}
+        except Exception:
+            log.warning("PAPER_QUOTE_UNAVAILABLE")
+            return {}
+
+    def fresh_quotes(self, quotes, now):
+        return {
+            symbol: quote
+            for symbol, quote in quotes.items()
+            if isinstance(quote, MarketQuote)
+            and quote.symbol == symbol
+            and quote.fresh(now, self.settings.max_quote_age_seconds)
+        }
+
     def run_once(self, now=None, lease_owner=None):
+        explicit_now = now
         now = now or utcnow()
-        result = {"processed": 0, "orders": 0, "fresh_markets": 0}
+        with self.repository.database.session() as session:
+            symbols = {c.symbol for c in self.contexts(session, now)}
+            symbols.update(
+                session.scalars(
+                    select(PaperPosition.symbol).where(PaperPosition.status == "OPEN")
+                )
+            )
+        raw_quotes = self.fetch_quotes(symbols)
+        now = explicit_now or utcnow()
+        quotes = self.fresh_quotes(raw_quotes, now)
+        result = {
+            "processed": 0,
+            "orders": 0,
+            "fresh_markets": 0,
+            "fresh_quotes": len(quotes),
+            "missing_quotes": sorted(symbols - quotes.keys()),
+        }
         with self.repository.transaction() as session:
+            now = explicit_now or utcnow()
+            quotes = self.fresh_quotes(raw_quotes, now)
+            result["fresh_quotes"] = len(quotes)
+            result["missing_quotes"] = sorted(symbols - quotes.keys())
             portfolio = PortfolioService(session)
             a = portfolio.account
             if (
@@ -222,36 +300,46 @@ class PaperEngine:
             a.configuration = self.settings.public_dict()
             contexts = self.contexts(session, now)
             result["fresh_markets"] = len(contexts)
-            portfolio.mark({c.symbol: c.price for c in contexts}, now)
-            # Risk-reducing exits run first and remain active while trading OFF.
+            portfolio.mark(
+                {symbol: quote.bid for symbol, quote in quotes.items()},
+                now,
+                {symbol: quote.audit() for symbol, quote in quotes.items()},
+            )
+            # Quote-based protection does not depend on fresh candles or new signals.
             exited = set()
             for position in list(portfolio.positions()):
-                context = next(
-                    (c for c in contexts if c.symbol == position.symbol), None
-                )
-                if context is None:
+                quote = quotes.get(position.symbol)
+                if not quote:
                     continue
                 reason = (
                     "STOP"
-                    if context.price <= position.stop_price
+                    if quote.bid <= position.stop_price
                     else "TAKE_PROFIT"
                     if position.take_profit_price
-                    and context.price >= position.take_profit_price
+                    and quote.bid >= position.take_profit_price
                     else None
                 )
                 if reason:
+                    entry_signal = session.get(SignalRecord, position.signal_id)
                     signal = StrategySignal(
                         position.symbol,
                         "SELL",
                         D(1),
-                        context.price,
+                        quote.bid,
                         None,
                         now,
                         position.strategy_name,
-                        (f"Application-level {reason} at observed scanner price",),
-                        context.snapshot_id,
+                        (f"Application-level {reason} at current book bid",),
+                        entry_signal.snapshot_id,
                     )
-                    order = self.apply_signal(session, signal, portfolio, now, reason)
+                    order = self.apply_signal(
+                        session,
+                        signal,
+                        portfolio,
+                        explicit_now or utcnow(),
+                        quotes,
+                        reason,
+                    )
                     if order.status == "FILLED":
                         exited.add(position.symbol)
                     result["orders"] += 1
@@ -263,7 +351,7 @@ class PaperEngine:
                 )
                 result["processed"] += 1
                 if context.symbol in exited:
-                    continue  # never re-enter in a closing cycle
+                    continue
                 has_position = any(
                     p.symbol == context.symbol for p in portfolio.positions()
                 )
@@ -279,41 +367,62 @@ class PaperEngine:
                     session,
                     signal,
                     portfolio,
-                    now,
+                    explicit_now or utcnow(),
+                    quotes,
                     "STRATEGY" if signal.action == "SELL" else None,
                 )
                 if order:
                     result["orders"] += 1
-            portfolio.snapshot(now)
+            portfolio.snapshot(
+                now,
+                {
+                    "missing_symbols": result["missing_quotes"],
+                    "position_quotes": {
+                        p.symbol: quotes[p.symbol].audit()
+                        if p.symbol in quotes
+                        else None
+                        for p in portfolio.positions()
+                    },
+                },
+            )
         return result
 
     def manual_close(self, position_id, now=None):
+        explicit_now = now
         now = now or utcnow()
-        with self.repository.transaction() as session:
+        with self.repository.database.session() as session:
             position = session.get(PaperPosition, position_id)
             if position is None or position.status != "OPEN":
                 raise ValueError("Position is not open")
-            context = next(
-                (c for c in self.contexts(session, now) if c.symbol == position.symbol),
-                None,
-            )
-            if context is None:
-                raise ValueError(
-                    "Fresh scanner price unavailable; manual close refused"
-                )
+            symbol = position.symbol
+        quotes = self.fetch_quotes({symbol})
+        now = explicit_now or utcnow()
+        quotes = self.fresh_quotes(quotes, now)
+        if symbol not in quotes:
+            raise ValueError("Fresh public quote unavailable; manual close refused")
+        with self.repository.transaction() as session:
+            now = explicit_now or utcnow()
+            quotes = self.fresh_quotes(quotes, now)
+            if symbol not in quotes:
+                raise ValueError("Fresh public quote unavailable; manual close refused")
+            position = session.get(PaperPosition, position_id)
+            if position is None or position.status != "OPEN":
+                raise ValueError("Position is not open")
+            quote = quotes[symbol]
             portfolio = PortfolioService(session)
-            portfolio.mark({context.symbol: context.price}, now)
+            portfolio.mark({symbol: quote.bid}, now, {symbol: quote.audit()})
+            entry_signal = session.get(SignalRecord, position.signal_id)
             signal = StrategySignal(
-                context.symbol,
+                symbol,
                 "SELL",
                 D(1),
-                context.price,
+                quote.bid,
                 None,
                 now,
                 position.strategy_name,
-                ("Manual paper position close",),
-                context.snapshot_id,
+                ("Manual paper position close at current book bid",),
+                entry_signal.snapshot_id,
             )
-            order = self.apply_signal(session, signal, portfolio, now, "MANUAL")
+            order = self.apply_signal(session, signal, portfolio, now, quotes, "MANUAL")
             portfolio.snapshot(now)
             return order.id

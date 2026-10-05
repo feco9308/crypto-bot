@@ -15,6 +15,8 @@ from crypto_bot.trading.engine import PaperEngine
 from crypto_bot.trading.repository import PaperRepository
 from crypto_bot.web.app import create_app
 
+pytestmark = pytest.mark.usefixtures("paper_quote_fixture")
+
 
 @pytest.fixture
 def setup(database, settings):
@@ -131,7 +133,7 @@ def test_paper_web_control_manual_close_and_audit(setup, database, settings):
         response = client.get("/api/system/status").json
         assert (
             response["version"] == "0.2.0"
-            and response["migration_version"] == "0002_paper"
+            and response["migration_version"] == "0003_quotes_permissions"
         )
         assert not response["trading_enabled"]
         assert client.post("/paper/control", data={"enabled": "ON"}).status_code == 403

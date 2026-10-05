@@ -15,6 +15,7 @@ from crypto_bot.storage.paper_models import (
     ProcessedSnapshot,
     RiskRecord,
     SignalRecord,
+    SymbolTradePermission,
 )
 from crypto_bot.trading.domain import ZERO, q
 
@@ -94,6 +95,73 @@ class PaperRepository:
                 for order in session.scalars(
                     select(PaperOrder).where(
                         PaperOrder.status == "CREATED", PaperOrder.side == "BUY"
+                    )
+                ):
+                    execution.cancel_order(order.id, now)
+
+    def permissions(self, now=None):
+        from crypto_bot.storage.models import Override
+        from crypto_bot.trading.permissions import entry_permission
+
+        now = now or utcnow()
+        with self.database.session() as session:
+            symbols = set(session.scalars(select(SymbolTradePermission.symbol)))
+            symbols.update(session.scalars(select(Override.symbol)))
+            symbols.update(
+                r["symbol"]
+                for r in self.database.latest_rows("1h")
+                if r["algorithm_watch"]
+            )
+            return [
+                dict(
+                    symbol=symbol,
+                    **entry_permission(
+                        session, symbol, now, self.settings.max_snapshot_age_seconds
+                    ),
+                )
+                for symbol in sorted(symbols)
+            ]
+
+    def set_manual_trade_enabled(self, symbol, enabled, now=None):
+        from crypto_bot.storage.models import Instrument
+
+        if type(enabled) is not bool:
+            raise ValueError("Expected boolean permission")
+        now = now or utcnow()
+        with self.transaction() as session:
+            instrument = session.get(Instrument, symbol)
+            if (
+                not instrument
+                or instrument.quote_asset != self.settings.quote_asset
+                or not instrument.spot
+            ):
+                raise ValueError("Unknown or incompatible Spot instrument")
+            row = session.get(SymbolTradePermission, symbol)
+            if row is None:
+                row = SymbolTradePermission(
+                    symbol=symbol, manual_trade_enabled=enabled, updated_at=now
+                )
+                session.add(row)
+            else:
+                row.manual_trade_enabled, row.updated_at = enabled, now
+            from crypto_bot.trading.permissions import entry_permission
+
+            if (
+                not enabled
+                and not entry_permission(
+                    session, symbol, now, self.settings.max_snapshot_age_seconds
+                )["entry_eligible"]
+            ):
+                from crypto_bot.execution.paper import PaperExecutionService
+
+                execution = PaperExecutionService(
+                    session, PortfolioService(session), self.settings
+                )
+                for order in session.scalars(
+                    select(PaperOrder).where(
+                        PaperOrder.symbol == symbol,
+                        PaperOrder.status == "CREATED",
+                        PaperOrder.side == "BUY",
                     )
                 ):
                     execution.cancel_order(order.id, now)
@@ -185,5 +253,14 @@ class PaperRepository:
                 current_exposure=str(v.exposure),
                 max_drawdown=str(v.max_drawdown),
                 open_positions=len(v.positions),
+                stale_position_marks=[
+                    p.symbol
+                    for p in session.scalars(
+                        select(PaperPosition).where(PaperPosition.status == "OPEN")
+                    )
+                    if not p.marked_at
+                    or (utcnow() - p.marked_at).total_seconds()
+                    > self.settings.max_quote_age_seconds
+                ],
                 configuration=a.configuration,
             )

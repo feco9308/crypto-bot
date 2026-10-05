@@ -14,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from crypto_bot.storage.decimal_type import ExactDecimal
-from crypto_bot.storage.models import Snapshot
+from crypto_bot.storage.models import Instrument, Snapshot
 
 MONEY = ExactDecimal()
 
@@ -42,6 +42,13 @@ class PaperAccount(ExtensionBase):
     configuration: Mapped[dict] = mapped_column(JSON)
     lease_owner: Mapped[str | None] = mapped_column(String(50))
     lease_until: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class SymbolTradePermission(ExtensionBase):
+    __tablename__ = "paper_symbol_permissions"
+    symbol: Mapped[str] = mapped_column(ForeignKey(Instrument.symbol), primary_key=True)
+    manual_trade_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime)
 
 
 class SignalRecord(ExtensionBase):
@@ -74,6 +81,7 @@ class RiskRecord(ExtensionBase):
     stop_distance_pct: Mapped[Decimal] = mapped_column(MONEY)
     reasons: Mapped[list] = mapped_column(JSON)
     portfolio: Mapped[dict] = mapped_column(JSON)
+    execution_quote: Mapped[dict | None] = mapped_column(JSON)
 
 
 class PaperOrder(ExtensionBase):
@@ -88,6 +96,7 @@ class PaperOrder(ExtensionBase):
     status: Mapped[str] = mapped_column(String(12))
     quantity: Mapped[Decimal] = mapped_column(MONEY)
     reference_price: Mapped[Decimal] = mapped_column(MONEY)
+    quote: Mapped[dict | None] = mapped_column(JSON)
     reserved_amount: Mapped[Decimal] = mapped_column(MONEY, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(DateTime)
@@ -106,6 +115,8 @@ class PaperPosition(ExtensionBase):
     take_profit_price: Mapped[Decimal | None] = mapped_column(MONEY)
     opened_at: Mapped[datetime] = mapped_column(DateTime)
     current_price: Mapped[Decimal] = mapped_column(MONEY)
+    mark_quote: Mapped[dict | None] = mapped_column(JSON)
+    marked_at: Mapped[datetime | None] = mapped_column(DateTime)
     entry_fee: Mapped[Decimal] = mapped_column(MONEY)
     exit_fee: Mapped[Decimal] = mapped_column(MONEY, default=0)
     unrealized_pnl: Mapped[Decimal] = mapped_column(MONEY, default=0)
@@ -149,6 +160,7 @@ class PortfolioSnapshot(ExtensionBase):
     daily_pnl: Mapped[Decimal] = mapped_column(MONEY)
     max_drawdown: Mapped[Decimal] = mapped_column(MONEY)
     open_positions: Mapped[int] = mapped_column(Integer)
+    quote_status: Mapped[dict | None] = mapped_column(JSON)
 
 
 class ProcessedSnapshot(ExtensionBase):

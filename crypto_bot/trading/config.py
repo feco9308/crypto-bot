@@ -23,6 +23,8 @@ class PaperSettings:
     pyramiding: bool = False
     loop_interval: float = 15
     max_snapshot_age_seconds: float = 900
+    max_quote_age_seconds: float = 10
+    quote_timeout: float = 5
     strategy_name: str = "watchlist_reference_v1"
     min_score: Decimal = Decimal("70")
     min_delta: Decimal = Decimal("0")
@@ -80,7 +82,12 @@ class PaperSettings:
             raise ValueError("Pyramiding is not supported; must be false")
         import math
 
-        for name in ["loop_interval", "max_snapshot_age_seconds"]:
+        for name in [
+            "loop_interval",
+            "max_snapshot_age_seconds",
+            "max_quote_age_seconds",
+            "quote_timeout",
+        ]:
             if not math.isfinite(getattr(self, name)) or getattr(self, name) <= 0:
                 raise ValueError(f"Invalid {name}")
         for name in ["max_open_positions", "delta_window"]:
