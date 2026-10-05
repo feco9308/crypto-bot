@@ -169,24 +169,10 @@ PostgreSQL-hez később külön driver telepítése és database_url váltás sz
 
 ## Production / systemd
 
-A minták `/opt/crypto-bot` útvonalat és `crypto-bot` rendszerfelhasználót használnak; a repository bárhol lehet, az unitokban ezt igazítsd az aktuális abszolút útvonalhoz. Nincs korábbi szerverútvonaltól való függés.
-
-```bash
-sudo useradd --system --user-group --home-dir /opt/crypto-bot --shell /usr/sbin/nologin crypto-bot
-# A repositoryt /opt/crypto-bot alá helyezd, ott készítsd el a virtualenvet és .env-et.
-# Production secret: .env SCANNER_SECRET_KEY értékébe tartós véletlen kulcs:
-python3 -c 'import secrets; print(secrets.token_hex(32))'
-# Előbb az aktuális checkoutban a telepítési lépések és init-db:
-sudo mkdir -p /opt/crypto-bot/data
-sudo chown -R crypto-bot:crypto-bot /opt/crypto-bot
-sudo chmod 600 /opt/crypto-bot/.env
-sudo -u crypto-bot sh -c 'cd /opt/crypto-bot && .venv/bin/market-scanner init-db'
-sudo cp /opt/crypto-bot/deploy/crypto-scanner.service /etc/systemd/system/
-sudo cp /opt/crypto-bot/deploy/crypto-dashboard.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now crypto-scanner crypto-dashboard
-journalctl -u crypto-scanner -f
-```
+A production minták a `/home/ndvi/crypto-bot` checkoutot és `ndvi` felhasználót használják.
+A három szolgáltatás telepítését, státuszát és a felhasználói/rendszerszintű systemd közötti
+váltást az OPERATIONS rész írja le. Más gépen a minták útvonalait és felhasználóját igazítsd.
+Az adatbázis frissítését mindig konzisztens mentés és integritásellenőrzés előzze meg.
 
 Dashboard production parancs: `.venv/bin/gunicorn --config gunicorn.conf.py 'crypto_bot.web.app:create_app()'`. A `gunicorn.conf.py` alapból `0.0.0.0:8000` címet és két workert használ, a bindot a `WEB_HOST`/`WEB_PORT` értékekből olvassa. Scanner és web külön szolgáltatás. Tartós secret szükséges, hogy több worker ugyanazt a session/CSRF kulcsot használja.
 
@@ -196,7 +182,7 @@ Meglévő systemd telepítés frissítése a dashboard unit újbóli másolása 
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl restart crypto-dashboard
+sudo systemctl restart crypto-web
 sudo ss -ltnp | grep :8000
 ```
 
@@ -297,17 +283,9 @@ Terminál bezárását túlélő indítás, sudo nélkül:
 
 A helper setsid + nohup segítségével külön sessiont indít, saját PID-fájlokkal és `data/services/` logokkal. Egy másik checkout folyamatait nem kezeli. A `start scanner` és `start all` **csak a jelenlegi gyűjtés utáni tervezett átállításkor** használható; most ne indítsd a meglévő gyűjtő mellé. A helper nem indít újra gépreboot után; arra systemd ajánlott.
 
-Production: a meglévő scanner/web unit mellé `deploy/crypto-paper.service` került. Az `/opt/crypto-bot` útvonalak és user igazítása, telepítés, migrate és paper init után:
-
-```bash
-sudo cp deploy/crypto-paper.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now crypto-paper
-sudo systemctl stop crypto-paper
-journalctl -u crypto-paper -f
-```
-
-A gyűjtés utáni teljes átállításkor a scanner és dashboard minták ugyanígy telepíthetők. A systemd szolgáltatások a terminál bezárása és reboot után is futtathatók. Ebben a munkamenetben az eredeti scanner/web szolgáltatásokat nem telepítettük újra és nem indítottuk újra.
+Productionben a három systemd unit ugyanazt az élő adatbázist használja.
+A telepítési és üzemeltetési parancsokat lásd az OPERATIONS részben.
+Ne indíts a helperrel második scannert vagy engine-t a systemd szolgáltatások mellé.
 
 ### Referencia-stratégia
 
@@ -374,3 +352,73 @@ A dashboard továbbra is operátori felület, saját login nincs; Nginx Proxy Ma
 A tesztek fixed Decimal értékeket, mock market data-t és külön SQLite adatbázisokat használnak. Scanner regresszió, migráció/persistence, signal, risk sizing/limitek, cash/reserved/PnL, fee/slippage, buy/sell/cancel/reject, stop/TP/manual, OFF, replay/duplicate, reset, rollback, heartbeat/health/event retention és web kontroll ellenőrzése szerepel bennük. Részletes futási eredmény: `docs/PAPER_VALIDATION.md`.
 
 Következő mérföldkő: a napi gyűjtés utáni kontrollált átállítás; paper adatok megfigyelése és ledger reconciliation; pontosabb árstream/intrabar stop modell; historikus OHLCV/spread archiválás, retention/backup és PostgreSQL integration. Live execution továbbra is külön feladat, itt nincs implementálva.
+
+
+## OPERATIONS — production on this host
+
+Production checkout: `/home/ndvi/crypto-bot`; SQLite database:
+`/home/ndvi/crypto-bot/data/market.db`.
+All three processes read the same `.env` with
+`SCANNER_DATABASE_URL=sqlite:////home/ndvi/crypto-bot/data/market.db`,
+`WEB_HOST=0.0.0.0`, `WEB_PORT=8000`. Preserve the remaining scanner settings.
+Gunicorn serves `/`, `/paper`, `/services`, `/health`, `/api/system/status` on port 8000.
+The existing Nginx Proxy Manager mapping for `https://crypto.vagilak.hu` is unchanged.
+The separate `/home/ndvi/crypto-bot-paper` checkout is development only.
+
+The initial migration uses **user systemd services under ndvi**, with linger enabled.
+These survive terminal closure and start at boot. Their unit names match the system
+service templates, but commands require `--user`. No Python process runs as root.
+User units cannot depend on the system `network-online.target`; scanner retries
+failed cycles when the network becomes available. The system templates include the
+network dependency and stronger filesystem protection.
+
+```bash
+# STATUS / LOG
+systemctl --user status crypto-market-scanner crypto-web crypto-paper
+systemctl --user is-enabled crypto-market-scanner crypto-web crypto-paper
+journalctl --user -u crypto-market-scanner -f
+journalctl --user -u crypto-web -f
+journalctl --user -u crypto-paper -f
+
+# START / STOP / RESTART (select only the services you need)
+systemctl --user start crypto-market-scanner crypto-web crypto-paper
+systemctl --user stop crypto-paper crypto-web crypto-market-scanner
+systemctl --user restart crypto-web
+
+# PAPER — engine running does not mean trading enabled
+cd /home/ndvi/crypto-bot
+.venv/bin/market-scanner paper status
+.venv/bin/market-scanner paper off
+# Enable entries only when intentionally requested by the operator:
+.venv/bin/market-scanner paper on
+
+# RESET — explicit confirmation; scanner history and overrides remain intact
+.venv/bin/market-scanner paper off
+systemctl --user stop crypto-paper
+.venv/bin/market-scanner paper reset --confirm RESET-PAPER
+systemctl --user start crypto-paper
+```
+
+The fresh production paper account starts with 1000 USDT and **TRADING OFF**.
+Restart preserves the stored ON/OFF value. NO LIVE TRADING IMPLEMENTED.
+Do not use `scripts/background.sh start` for services already managed by systemd.
+To install user units on this host, copy `deploy/user/*.service` to
+`~/.config/systemd/user/`, run `systemctl --user daemon-reload`, then
+`systemctl --user enable --now crypto-market-scanner crypto-web crypto-paper`.
+Enable linger with `loginctl enable-linger ndvi` if not already enabled.
+
+Optional administrator handover to system services, after reviewing the units:
+
+```bash
+sudo /home/ndvi/crypto-bot/scripts/install-production-systemd.sh
+# Thereafter use system commands without --user:
+systemctl status crypto-market-scanner crypto-web crypto-paper
+sudo systemctl restart crypto-web
+journalctl -u crypto-market-scanner -f
+```
+
+The installer stops/disables the user units before enabling the system units and
+preserves the database and the paper ON/OFF setting. Do not run both sets together.
+Backups and the exact rollback plan are under
+`/home/ndvi/crypto-bot-backups/20261005-194519-UTC/`; see also
+[the production migration report](docs/PRODUCTION_MIGRATION.md).

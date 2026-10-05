@@ -1,5 +1,5 @@
 [Unit]
-Description=Paper Trading Engine (NO LIVE TRADING)
+Description=Production Gunicorn Dashboard
 Wants=network-online.target
 After=network-online.target
 
@@ -10,7 +10,7 @@ Group=ndvi
 WorkingDirectory=/home/ndvi/crypto-bot
 EnvironmentFile=/home/ndvi/crypto-bot/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/ndvi/crypto-bot/.venv/bin/market-scanner paper run
+ExecStart=/home/ndvi/crypto-bot/.venv/bin/gunicorn --config /home/ndvi/crypto-bot/gunicorn.conf.py crypto_bot.web.app:create_app()
 Restart=on-failure
 RestartSec=15
 TimeoutStopSec=120

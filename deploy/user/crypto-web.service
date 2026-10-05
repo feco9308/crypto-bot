@@ -1,0 +1,20 @@
+[Unit]
+Description=Production Gunicorn Dashboard
+
+[Service]
+Type=simple
+User=ndvi
+Group=ndvi
+WorkingDirectory=/home/ndvi/crypto-bot
+EnvironmentFile=/home/ndvi/crypto-bot/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ndvi/crypto-bot/.venv/bin/gunicorn --config /home/ndvi/crypto-bot/gunicorn.conf.py crypto_bot.web.app:create_app()
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=120
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

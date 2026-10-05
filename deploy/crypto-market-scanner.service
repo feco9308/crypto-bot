@@ -1,5 +1,5 @@
 [Unit]
-Description=Paper Trading Engine (NO LIVE TRADING)
+Description=Market Scanner
 Wants=network-online.target
 After=network-online.target
 
@@ -10,10 +10,10 @@ Group=ndvi
 WorkingDirectory=/home/ndvi/crypto-bot
 EnvironmentFile=/home/ndvi/crypto-bot/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/ndvi/crypto-bot/.venv/bin/market-scanner paper run
+ExecStart=/home/ndvi/crypto-bot/.venv/bin/market-scanner scan
 Restart=on-failure
 RestartSec=15
-TimeoutStopSec=120
+TimeoutStopSec=1800
 StandardOutput=journal
 StandardError=journal
 NoNewPrivileges=true
