@@ -5,7 +5,7 @@ __pycache__/
 *.py[cod]
 *.log
 signals_log.csv
-config.py
+/config.py
 .env
 .env.*
 !.env.example
@@ -19,3 +19,4 @@ dist/
 .coverage
 /config/scanner.json
 .ruff_cache/
+/config/paper.json
