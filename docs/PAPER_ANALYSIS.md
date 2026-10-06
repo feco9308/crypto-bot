@@ -130,6 +130,8 @@ rés van a candle sorban, az adott ablak null. OPEN trade MFE/MAE-ja null marad.
 - Derived trade cache: max **512 trade/range eredmény**; READY CLOSED TTL 1 óra,
   OPEN/PARTIAL/UNAVAILABLE TTL 60s.
 - Aggregation worker: külön **1 thread**, max **4 pending** szűrő; max **16 összesítés**, TTL 30s.
+  Frissítés közben az utolsó kész statisztika olvasható marad; historical jobok
+  folyamatos befejezése nem üresíti ki az összesítést minden pollnál.
 - Az analysis request nem vár a Binance-ra vagy a teljes aggregációra.
 - `aggregation_status=PENDING|READY|UNAVAILABLE` külön jelzi az összesítést.
 - Trade `analysis_data_status=PENDING|READY|PARTIAL|UNAVAILABLE`.

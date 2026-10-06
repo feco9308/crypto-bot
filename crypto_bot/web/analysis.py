@@ -166,7 +166,9 @@ class AnalysisService:
         return meta
 
     def totals(self, value):
-        key = (tuple(sorted(value.items())), self.history.revision)
+        # Historical progress must not invalidate every summary request.
+        # Keep the last completed summary visible while refreshing every 30s.
+        key = tuple(sorted(value.items()))
         schedule = False
         with self.lock:
             cached = self.aggregate_cache.get(key)

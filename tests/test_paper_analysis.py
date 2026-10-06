@@ -197,6 +197,13 @@ def test_summary_endpoint_cached_no_http_wait(analysis_case):
     assert data["aggregation_status"] == "READY"
     assert data["total_trades"] == 1 and data["open_trades"] == 1
     assert data["net_realized_pnl"] == 0 and data["current_equity"]
+    # Historical jobs completing continuously must not hide cached statistics.
+    cache_keys = list(service.aggregate_cache)
+    service.history.revision += 10
+    assert (
+        client.get("/api/paper/analysis/summary").json["aggregation_status"] == "READY"
+    )
+    assert list(service.aggregate_cache) == cache_keys
     queued = Queued()
     service.aggregate_executor = queued
     service.aggregate_cache.clear()
