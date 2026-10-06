@@ -1,4 +1,4 @@
-"""DB-only GET views; explicit paper manual-close POST fetches a public quote."""
+"""Scanner GETs use DB data; isolated paper visualization GETs use public data."""
 
 import hmac
 import secrets

@@ -70,3 +70,13 @@ if (canvas) {
     draw();window.addEventListener('resize',draw);
   }).catch(()=>{document.querySelector('#chart-status').textContent='A history nem tölthető be. Az alábbi táblázat továbbra is használható.';});
 }
+
+// Native Details links remain usable without JavaScript and from the keyboard.
+document.querySelectorAll('[data-position-url]').forEach(row => {
+  row.addEventListener('click', event => {
+    if (event.target.closest('a,button,input,select,textarea,form,label') ||
+        event.ctrlKey || event.metaKey || event.shiftKey || event.altKey ||
+        window.getSelection()?.toString()) return;
+    location.assign(row.dataset.positionUrl);
+  });
+});

@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% macro fields(items) %}<dl class="audit-metrics">{% for label,value in items %}<div><dt>{{ label }}</dt><dd>{{ value if value is not none else '— / not recorded' }}</dd></div>{% endfor %}</dl>{% endmacro %}
+{% macro audit_block(audit, title) %}
+{% set signal = audit.signal %}{% set risk = audit.risk %}{% set order = audit.order %}{% set fill = audit.fill %}{% set snapshot = audit.snapshot %}
+<section><h2>{{ title }}</h2>
+{% if signal %}<p><a href="{{ url_for('paper_audit',signal_id=signal.id) }}">Signal #{{ signal.id }} · complete signal / risk / order audit</a></p>
+<h3>Scanner · closed {{ snapshot.timeframe if snapshot else '1h' }} strategy data</h3>
+{% if snapshot %}
+{{ fields([('Snapshot ID',snapshot.id),('Snapshot timestamp UTC',snapshot.timestamp),('Market Score',snapshot.total_score),('Trend component',snapshot.trend_score),('Momentum component',snapshot.momentum_score),('Volume component',snapshot.volume_score),('Volatility component',snapshot.volatility_score),('Liquidity component',snapshot.liquidity_score),('Δ1h',snapshot.score_momentum.get('delta_1h')),('Δ4h',snapshot.score_momentum.get('delta_4h')),('Δ24h',snapshot.score_momentum.get('delta_24h')),('Trend',snapshot.features.get('trend')),('EMA50',snapshot.ema50),('EMA200',snapshot.ema200),('RSI',snapshot.rsi),('ATR',snapshot.atr),('Relative volume',snapshot.relative_volume),('Momentum',snapshot.features.get('momentum')),('Spread',snapshot.spread)]) }}
+<details><summary>Stored scanner features, score momentum and reasons</summary><pre>{{ snapshot.features|tojson(indent=2) }}</pre><pre>{{ snapshot.score_momentum|tojson(indent=2) }}</pre><ul>{% for reason in snapshot.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></details>
+{% else %}<p>Scanner snapshot unavailable.</p>{% endif %}
+{% set permission = signal.configuration.get('entry_permission',{}) %}
+{{ fields([('Algorithm watch at decision',permission.get('algorithm_watch')),('Manual trade permission at decision',permission.get('manual_trade_enabled')),('Effective entry eligibility at decision',permission.get('entry_eligible')),('Watch state',permission.get('watch_override'))]) }}
+<h3>Strategy</h3>{{ fields([('Action',signal.action),('Relative signal strength (not probability)',signal.signal_strength),('Strategy',signal.strategy_name),('Signal timestamp UTC',signal.timestamp),('STRATEGY REFERENCE PRICE',signal.entry_reference)]) }}
+<ul>{% for reason in signal.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+<details><summary>Strategy / risk configuration at decision</summary><pre>{{ signal.configuration|tojson(indent=2) }}</pre></details>
+{% endif %}
+<h3>Risk decision</h3>{% if risk %}
+{{ fields([('Risk decision ID',risk.id),('Approved',risk.approved),('Equity at decision',risk.portfolio.get('equity')),('Available cash',available_cash if title == 'WHY DID WE BUY?' else risk.portfolio.get('available_cash')),('Approved risk amount',risk.risk_amount),('Risk budget %',signal.configuration.get('risk_per_trade_pct') if signal else none),('Position notional',risk.position_notional),('Quantity',risk.quantity),('Stop distance %',risk.stop_distance_pct)]) }}
+{% if title == 'WHY DID WE BUY?' %}{{ fields([('Risk budget (equity × configured risk %)',risk_budget),('Total exposure before entry (notional)',total_exposure),('Symbol exposure before entry (notional)',symbol_exposure)]) }}{% endif %}
+<ul>{% for reason in risk.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+<details><summary>Exact stored portfolio / risk quote</summary><pre>{{ risk.portfolio|tojson(indent=2) }}</pre><pre>{{ risk.execution_quote|tojson(indent=2) }}</pre></details>
+{% else %}<p>Risk record unavailable.</p>{% endif %}
+<h3>EXECUTION QUOTE / FILL PRICE</h3>
+<p>Separate from the strategy reference. Public bookTicker only; no candle-close fallback. received_at is local receipt time, not exchange update time.</p>
+{% set quote = order.quote or {} if order else {} %}
+{{ fields([('Public quote source',quote.get('source')),('Bid',quote.get('bid')),('Ask',quote.get('ask')),('Quote received_at UTC',quote.get('received_at')),('Execution side',order.side if order else none),('Order ID',order.id if order else none),('Order status',order.status if order else none),('Execution reference price',order.reference_price if order and quote else none),('Fill ID',fill.id if fill else none),('Fill price',fill.price if fill else none),('Fill UTC',fill.timestamp if fill else none),('Slippage cost (quote asset)',fill.slippage if fill else none),('Fee (quote asset)',fill.fee if fill else none)]) }}
+{% if not quote %}<p class="health-DEGRADED">Execution quote metadata was not recorded. A candle price is never substituted.</p>{% endif %}
+</section>{% endmacro %}
+{% block content %}
+<p><a href="{{ url_for('paper') }}">← Paper portfolio</a></p>
+<h1>{{ position.symbol }} · Position #{{ position.id }} · {{ position.status }}</h1>
+<section><h2>TRADE / POSITION SUMMARY</h2>
+{{ fields([('Symbol',position.symbol),('Status',position.status),('Side',position.side),('Strategy',position.strategy_name),('Entry time UTC',position.opened_at),('Exit time UTC',position.closed_at),('Duration',duration),('Quantity',position.quantity),('Entry notional',position.notional),('Entry price',position.entry_price),('Exit price' if position.status == 'CLOSED' else 'Last ledger mark price',position.exit_price if position.status == 'CLOSED' else position.current_price),('Realized PnL',position.realized_pnl),('Unrealized PnL (recorded)',position.unrealized_pnl),('Total fees',position.entry_fee+position.exit_fee),('Return % (net recorded PnL / entry cost)',return_pct|number),('Stop price',position.stop_price),('Take profit',position.take_profit_price),('Entry signal ID',position.signal_id),('Position ID',position.id),('Entry order ID',position.entry_order_id),('Exit order ID',position.exit_order_id)]) }}
+</section>
+{% if position.status == 'OPEN' %}<section id="current-quote" data-url="{{ url_for('paper_trade_quote',position_id=position.id) }}"><h2>Current public bid · visualization only</h2><p id="quote-status" role="status">Loading public bid…</p><dl class="audit-metrics">{% for key,label in [('bid','Current public bid'),('received_at','Quote received UTC'),('unrealized_pnl','Indicative unrealized PnL'),('current_exposure','Current exposure (notional)'),('distance_to_stop_pct','Distance to stop % (bid − stop) / bid'),('distance_to_tp_pct','Distance to TP % (TP − bid) / bid')] %}<div><dt>{{ label }}</dt><dd data-quote-field="{{ key }}">—</dd></div>{% endfor %}</dl><p>The indicative display does not update the portfolio. Recorded PnL / last ledger mark remains above. No bid available means unavailable, never candle fallback.</p><p>Last stored mark: {{ position.marked_at or 'not recorded' }} UTC · source {{ (position.mark_quote or {}).get('source','not recorded') }}</p></section>{% endif %}
+{{ audit_block(entry,'WHY DID WE BUY?') }}
+{% if position.status == 'CLOSED' %}<section><h2>WHY DID WE SELL? · {{ position.exit_reason }}</h2><p>Realized PnL: {{ position.realized_pnl }}</p>
+{% if position.exit_reason in ['STOP','TAKE_PROFIT'] %}{% set q = exit.order.quote or {} if exit.order else {} %}<p>Trigger condition: {% if position.exit_reason == 'STOP' %}current bid ≤ stop price{% else %}current bid ≥ take-profit price{% endif %}</p>
+{{ fields([('Current bid at trigger',q.get('bid')),('Threshold',position.stop_price if position.exit_reason == 'STOP' else position.take_profit_price),('Trigger quote UTC',q.get('received_at'))]) }}
+{% elif position.exit_reason == 'MANUAL' %}<p>MANUAL: explicit paper position close requested by the user.</p>{% elif position.exit_reason == 'STRATEGY' %}<p>STRATEGY: recorded exit signal reasons are shown below.</p>{% endif %}</section>{{ audit_block(exit,'Exit decision / execution audit') }}{% endif %}
+<section><h2>EVENT TIMELINE · UTC</h2><p>Only recorded events. Risk time is the linked signal time; no separate risk timestamp exists. Intermediate marks are not reconstructed.</p><ol class="audit-timeline">{% for event in events %}<li><time>{{ event.timestamp }} UTC</time><strong>{{ event.title }}</strong><span>{{ event.detail }}</span>{% if event.signal_id %}<a href="{{ url_for('paper_audit',signal_id=event.signal_id) }}">Signal audit</a>{% endif %}</li>{% endfor %}</ol></section>
+<section id="trade-charts" data-price-url="{{ url_for('paper_trade_chart',position_id=position.id) }}" data-score-url="{{ url_for('paper_trade_scores',position_id=position.id) }}" data-open="{{ 'true' if position.status == 'OPEN' else 'false' }}"><h2>PRICE CHART · public Binance klines · visualization only</h2>
+<p>Two hours before entry through exit + up to one hour, or current UTC for OPEN. Open candles may appear here; they never feed strategy indicators.</p>
+<div class="chart-controls"><label>Timeframe <select id="trade-timeframe"><option>1m</option><option selected>5m</option><option>15m</option><option>1h</option></select></label><button id="chart-zoom-in">Zoom +</button><button id="chart-zoom-out">Zoom −</button><button id="chart-reset">Full range</button></div>
+<noscript><p>JavaScript szükséges a chartokhoz és az aktuális public bidhez. A tárolt trade audit továbbra is olvasható.</p></noscript>
+<p id="price-chart-status" role="status">Loading price chart…</p><canvas id="trade-price-chart" aria-label="Public OHLC candlestick chart with BUY SELL, entry stop and take-profit overlays"></canvas><p id="price-chart-hover">Move over or tap chart for candle details. Drag to pan.</p>
+<h2>SCORE CHART · actual scanner snapshots</h2><p>Market Score: turquoise; Δ4h: gold (right axis). Individual recorded points only; gaps and missing deltas stay empty. Entry / exit markers retain their exact UTC timestamps.</p><p id="score-chart-status" role="status">Loading score history…</p><canvas id="trade-score-chart" aria-label="Recorded Market Score and delta 4h points with entry exit markers"></canvas><p id="score-chart-hover"></p>
+<details><summary>Actual score records (accessible data table)</summary><div class="table-scroll"><table><thead><tr><th>Snapshot ID</th><th>UTC</th><th>Score</th><th>Δ4h</th></tr></thead><tbody id="score-records"></tbody></table></div></details>
+</section>
+<script defer src="{{ url_for('static',filename='trade_audit.js') }}"></script>
+{% endblock %}

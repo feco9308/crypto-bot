@@ -19,11 +19,19 @@ from crypto_bot.storage.paper_models import (
 from crypto_bot.trading.config import PaperSettings
 from crypto_bot.trading.engine import PaperEngine
 from crypto_bot.trading.repository import PaperRepository
+from crypto_bot.web.chart_data import ChartUnavailable, PublicChartData
+from crypto_bot.web.trade_audit import (
+    chart_range,
+    position_audit,
+    quote_display,
+    score_history,
+)
 
 
 def register_paper(app, database, scanner_settings):
     settings = PaperSettings.load()
     repo = PaperRepository(database, settings)
+    app.extensions["paper_chart_data"] = PublicChartData(scanner_settings.api_url)
     monitor = Monitoring(database, MonitorSettings.load())
     heartbeat = Heartbeat(monitor, "Web Dashboard").start()
     app.extensions["web_heartbeat"] = heartbeat
@@ -168,6 +176,89 @@ def register_paper(app, database, scanner_settings):
                 if position and position.exit_order_id
                 else None,
             )
+
+    def get_position(db, position_id):
+        if not repo.available():
+            abort(404)
+        position = db.get(PaperPosition, position_id)
+        if position is None:
+            abort(404)
+        return position
+
+    @app.get("/paper/trades/<int:position_id>")
+    def paper_trade(position_id):
+        with database.session() as db:
+            position = get_position(db, position_id)
+            return render_template("paper_trade.html", **position_audit(db, position))
+
+    @app.get("/api/paper/trades/<int:position_id>/chart")
+    def paper_trade_chart(position_id):
+        with database.session() as db:
+            position = get_position(db, position_id)
+            start, end = chart_range(position)
+            symbol = position.symbol
+            overlays = dict(
+                entry_time=position.opened_at.isoformat() + "Z",
+                exit_time=position.closed_at.isoformat() + "Z"
+                if position.closed_at
+                else None,
+                entry=float(position.entry_price),
+                stop=float(position.stop_price),
+                take_profit=float(position.take_profit_price)
+                if position.take_profit_price
+                else None,
+            )
+        interval = request.args.get("interval", "5m")
+        if interval not in {"1m", "5m", "15m", "1h"}:
+            abort(400, "Unsupported chart timeframe")
+        try:
+            cursor = int(request.args.get("start", start))
+            until = int(request.args.get("end", end))
+        except ValueError:
+            abort(400, "Invalid chart range")
+        if not start <= cursor <= until <= end:
+            abort(400, "Invalid chart range")
+        try:
+            data = app.extensions["paper_chart_data"].candles(
+                symbol, interval, cursor, until
+            )
+        except ChartUnavailable as exc:
+            return jsonify(error=str(exc), candles=[], visualization_only=True), 503
+        return jsonify(
+            **data,
+            symbol=symbol,
+            interval=interval,
+            range=dict(start=start, end=until),
+            overlays=overlays,
+            visualization_only=True,
+        )
+
+    @app.get("/api/paper/trades/<int:position_id>/scores")
+    def paper_trade_scores(position_id):
+        with database.session() as db:
+            position = get_position(db, position_id)
+            start, end = chart_range(position)
+            return jsonify(
+                points=score_history(db, position, start, end),
+                range=dict(start=start, end=end),
+                source="scanner_snapshots",
+                entry_time=position.opened_at.isoformat() + "Z",
+                exit_time=position.closed_at.isoformat() + "Z"
+                if position.closed_at
+                else None,
+            )
+
+    @app.get("/api/paper/trades/<int:position_id>/quote")
+    def paper_trade_quote(position_id):
+        with database.session() as db:
+            position = get_position(db, position_id)
+            if position.status != "OPEN":
+                abort(409, "Position is closed; use its recorded exit quote")
+            try:
+                quote = app.extensions["paper_chart_data"].quote(position.symbol)
+            except ChartUnavailable as exc:
+                return jsonify(error=str(exc), visualization_only=True), 503
+            return jsonify(**quote_display(position, quote), visualization_only=True)
 
     @app.get("/services")
     def services():
