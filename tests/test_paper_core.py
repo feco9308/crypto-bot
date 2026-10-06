@@ -219,6 +219,51 @@ def test_risk_default_symbol_cap():
     assert result.position_notional * (1 + D(".001")) <= D(200)
 
 
+@pytest.mark.parametrize("exposure_pct", [D(100), D(50)])
+def test_risk_quantity_rounding_is_not_a_cap(exposure_pct):
+    cfg = PaperSettings(
+        max_total_exposure_pct=exposure_pct,
+        max_symbol_exposure_pct=exposure_pct,
+        paper_fee_pct=ZERO,
+        paper_slippage_pct=ZERO,
+    )
+    # Requested = 5 / 3; rounding to 12 decimals is the only reduction.
+    result = RiskManager(cfg).evaluate(signal(symbol="TAOUSDT", stop="97"), view())
+    assert result.approved
+    assert result.quantity == D("1.666666666666")
+    assert result.position_notional == D("166.666666666600")
+    assert result.risk_amount == D("4.999999999998")
+    assert result.stop_distance_pct == D(3)
+    assert result.reasons == ("approved within all limits",)
+
+
+@pytest.mark.parametrize("constraint", ["total", "symbol", "cash", "equal"])
+def test_risk_cap_reason_tracks_actual_constraint(constraint):
+    cfg = PaperSettings(
+        max_total_exposure_pct=D(10) if constraint == "total" else D(100),
+        max_symbol_exposure_pct=D(10) if constraint == "symbol" else D(100),
+        paper_fee_pct=ZERO,
+        paper_slippage_pct=ZERO,
+    )
+    cash = "100" if constraint == "cash" else "250" if constraint == "equal" else "1000"
+    result = RiskManager(cfg).evaluate(signal(), view(cash=cash))
+    assert result.approved
+    if constraint == "equal":
+        # Cash allows exactly the risk-based quantity; no cap applies.
+        assert result.quantity == D("2.5")
+        assert result.position_notional == D(250)
+        assert result.risk_amount == D(5)
+        assert result.reasons == ("approved within all limits",)
+    else:
+        assert result.quantity == D(1)
+        assert result.position_notional == D(100)
+        assert result.risk_amount == D(2)
+        assert result.reasons == (
+            "approved within all limits",
+            "size capped by exposure or available cash",
+        )
+
+
 @pytest.mark.parametrize(
     "portfolio,expected",
     [

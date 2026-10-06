@@ -72,14 +72,13 @@ class RiskManager:
             return reject("symbol exposure limit reached")
         if p.available_cash <= 0:
             return reject("insufficient free balance")
-        quantity = q(
-            min(
-                requested,
-                total_room / (entry * (1 + fee)),
-                symbol_room / (entry * (1 + fee)),
-                p.available_cash / (entry * (1 + fee)),
-            )
+        limited_quantity = min(
+            requested,
+            total_room / (entry * (1 + fee)),
+            symbol_room / (entry * (1 + fee)),
+            p.available_cash / (entry * (1 + fee)),
         )
+        quantity = q(limited_quantity)
         notional = q(quantity * entry)
         if quantity <= 0 or notional < s.minimum_order_value:
             return reject(
@@ -87,7 +86,8 @@ class RiskManager:
             )
         risk = q(quantity * loss_per_unit)
         reasons = ["approved within all limits"]
-        if quantity < requested:
+        # Quantization alone is not an exposure/cash constraint.
+        if limited_quantity < requested:
             reasons.append("size capped by exposure or available cash")
         return RiskDecision(
             True,
