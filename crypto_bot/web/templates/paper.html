@@ -1,5 +1,5 @@
 {% extends 'base.html' %}{% block content %}
-<h1>Paper Trading</h1><p>NO LIVE TRADING IMPLEMENTED · belső szimulált account · long-only</p>
+<h1>Paper Trading</h1><p><a href="{{ url_for('paper_analysis') }}">Analysis / Download JSON / CSV</a></p><p>NO LIVE TRADING IMPLEMENTED · belső szimulált account · long-only</p>
 {% set engine = system.components|selectattr('name','equalto','Paper Trading Engine')|first %}
 <p>ENGINE: <strong class="health-{{ engine.status }}">{{ engine.status }}</strong> · TRADING: <strong>{{ 'ON' if portfolio.get('enabled') else 'OFF' }}</strong></p>
 {% if not portfolio.get('initialized') %}<p>Paper account még nincs inicializálva. Előbb <code>market-scanner migrate</code>, majd <code>market-scanner paper init</code>.</p>{% else %}

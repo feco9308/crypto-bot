@@ -155,4 +155,7 @@ def create_app(settings=None, database=None):
     from crypto_bot.web.paper import register_paper
 
     register_paper(app, database, settings)
+    from crypto_bot.web.analysis import register_analysis
+
+    register_analysis(app, database, settings)
     return app
