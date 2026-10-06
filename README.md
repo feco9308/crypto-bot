@@ -215,6 +215,8 @@ score-képleteket, momentum-számítást, adatminőségi és watchlist szabályo
 | --- | --- |
 | `/` | Market Scanner, rangsorok, watchlist, override, instrument history |
 | `/paper` | Portfolio, open positions, trade/signal history, audit, ON/OFF, manual close |
+| `/paper/analysis` | Read-only statisztika, score vs outcome, MFE/MAE, entry timing, JSON/CSV letöltés |
+| `/api/paper/analysis/trades`, `/summary`, `/export.json`, `/export.csv`, `/meta` | Szűrhető, read-only elemzés/export; meglévő proxy auth mögött |
 | `/paper/trades/<position_id>` | Közös OPEN/CLOSED audit: entry/exit döntések, UTC timeline, price/score chart, mobil kártyák |
 | `/api/paper/trades/<position_id>/chart`, `/scores`, `/quote` | Elkülönített, read-only vizualizációs adatok |
 | `/services` | Szolgáltatások és belső komponensek, heartbeat, success/error, verzió, git metadata |
@@ -234,6 +236,11 @@ OPEN pozíciónál a chart és az indikatív public bid 30 másodpercenként fri
 de a megjelenítés nem módosítja a strategy inputot vagy a portfolio könyvelést.
 Részletek, endpointok, korlátok és böngészős tesztelés:
 [Paper Trade / Position Audit](docs/PAPER_POSITION_AUDIT.md).
+
+A [Paper Analysis](docs/PAPER_ANALYSIS.md) a mentett auditadatokat exportálja.
+MFE/MAE és timing: elkülönített historical public kline adatok, bounded cache,
+háttérfeladatok. PENDING/UNAVAILABLE metrikák nullok, kevés lezárt trade esetén
+„Insufficient sample size”. Ez nem trading jel és nem módosítja a könyvelést.
 
 A hosszú életű scanner/paper process valódi, perzisztált heartbeatet ír. Régi heartbeat
 STALE státuszt okoz. Egy instrumentum hibája részleges scanner ciklust és DEGRADED

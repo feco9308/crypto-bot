@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from conftest import NOW
+from test_paper_analysis import analysis_case  # noqa: F401 -- imported pytest fixture
 from test_paper_trade_audit import audit  # noqa: F401 -- imported pytest fixture
 from werkzeug.serving import make_server
 
@@ -173,4 +174,50 @@ def test_browser_missing_data_and_public_get_only(browser_audit):
         method == "GET" and url.startswith(base + "/") for method, url in requests
     )
     assert not errors
+    page.close()
+
+
+@pytest.mark.parametrize("width", [1440, 390])
+def test_analysis_browser_export_and_mobile(browser_audit, request, database, width):
+    import json
+
+    request.getfixturevalue("analysis_case")
+    browser, base, case = browser_audit
+    if width == 390:
+        database.test_quotes = {"BTCUSDT": 101}
+        database.test_quote_time = NOW + timedelta(minutes=30)
+        case[2].manual_close(case[3], NOW + timedelta(minutes=30))
+    page = browser.new_page(
+        viewport=dict(width=width, height=960), accept_downloads=True
+    )
+    errors = []
+    requests = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: requests.append((request.method, request.url)))
+    page.goto(base + "/paper/analysis")
+    playwright.expect(page.locator("#sample-message")).to_contain_text(
+        "Insufficient sample size"
+    )
+    playwright.expect(page.locator("#analysis-progress")).to_contain_text("READY 1")
+    assert_no_page_overflow(page)
+    assert page.locator("#analysis-trades a").first.is_visible()
+    with page.expect_download() as download:
+        page.locator("#export-json").click()
+    payload = json.loads(Path(download.value.path()).read_text())
+    assert payload["metadata"]["trade_count"] == 1 and len(payload["trades"]) == 1
+    assert payload["trades"][0]["analysis_data_status"] == "READY"
+    with page.expect_download() as download:
+        page.locator("#export-csv").click()
+    assert Path(download.value.path()).read_bytes().startswith(b"\xef\xbb\xbf")
+    assert all(
+        method == "GET" and url.startswith(base + "/") for method, url in requests
+    )
+    assert not errors
+    directory = Path(__file__).parents[1] / "artifacts"
+    directory.mkdir(exist_ok=True)
+    page.screenshot(path=str(directory / f"paper-analysis-{width}.png"), full_page=True)
+    page.locator("h1").scroll_into_view_if_needed()
+    page.screenshot(path=str(directory / f"paper-analysis-summary-{width}.png"))
+    page.locator("#analysis-trades a").first.click()
+    page.wait_for_url(f"**/paper/trades/{case[3]}")
     page.close()
