@@ -20,3 +20,5 @@ dist/
 /config/scanner.json
 .ruff_cache/
 /config/paper.json
+
+/artifacts/

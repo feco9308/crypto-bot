@@ -215,6 +215,8 @@ score-képleteket, momentum-számítást, adatminőségi és watchlist szabályo
 | --- | --- |
 | `/` | Market Scanner, rangsorok, watchlist, override, instrument history |
 | `/paper` | Portfolio, open positions, trade/signal history, audit, ON/OFF, manual close |
+| `/paper/trades/<position_id>` | Közös OPEN/CLOSED audit: entry/exit döntések, UTC timeline, price/score chart, mobil kártyák |
+| `/api/paper/trades/<position_id>/chart`, `/scores`, `/quote` | Elkülönített, read-only vizualizációs adatok |
 | `/services` | Szolgáltatások és belső komponensek, heartbeat, success/error, verzió, git metadata |
 | `/health` | Rövid, secret nélküli health válasz, HTTP 200 vagy 503 |
 | `/api/system/status` | Részletes system status, DB schema/migration verzió és események |
@@ -223,6 +225,15 @@ score-képleteket, momentum-számítást, adatminőségi és watchlist szabályo
 ENGINE RUNNING és TRADING OFF egyszerre érvényes állapot. OFF mellett új pozíció
 nem nyílhat; meglévő pozíciók frissítése, stop/exit és manuális zárás működhet.
 Az ON/OFF, override és close műveletek CSRF-védett POST kérések.
+
+Az Open Positions és Paper Trade History sorai kattinthatók; a Details link
+JavaScript nélkül is használható. Az árchart public Binance klinesből készül
+(default 5m; 1m/5m/15m/1h), BUY/SELL markerrel és entry/stop/TP vonalakkal.
+A score-chart kizárólag tárolt scanner snapshotokat mutat, interpoláció nélkül.
+OPEN pozíciónál a chart és az indikatív public bid 30 másodpercenként frissül,
+de a megjelenítés nem módosítja a strategy inputot vagy a portfolio könyvelést.
+Részletek, endpointok, korlátok és böngészős tesztelés:
+[Paper Trade / Position Audit](docs/PAPER_POSITION_AUDIT.md).
 
 A hosszú életű scanner/paper process valódi, perzisztált heartbeatet ír. Régi heartbeat
 STALE státuszt okoz. Egy instrumentum hibája részleges scanner ciklust és DEGRADED
