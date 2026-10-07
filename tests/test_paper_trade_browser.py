@@ -221,3 +221,69 @@ def test_analysis_browser_export_and_mobile(browser_audit, request, database, wi
     page.locator("#analysis-trades a").first.click()
     page.wait_for_url(f"**/paper/trades/{case[3]}")
     page.close()
+
+
+@pytest.mark.parametrize("width", [1440, 390])
+def test_exit_simulator_browser_summary_detail_and_marker(
+    browser_audit, request, database, width
+):
+    from test_paper_analysis import Immediate
+
+    _, analysis, _ = request.getfixturevalue("analysis_case")
+    browser, base, case = browser_audit
+    client, _, engine, pid, _ = case
+    simulator = client.application.extensions["paper_exit_simulator"]
+    simulator.executor.shutdown(wait=False, cancel_futures=True)
+    simulator.executor = Immediate()
+    database.test_quotes = {"BTCUSDT": 97}
+    database.test_quote_time = NOW + timedelta(minutes=30)
+    engine.manual_close(pid, NOW + timedelta(minutes=30))
+    for _ in range(3):
+        client.get(f"/api/paper/analysis/exit-simulator?position_id={pid}")
+    client.get("/api/paper/analysis/exit-simulator/summary")
+    client.get(f"/api/paper/analysis/exit-simulator/summary?position_id={pid}")
+    page = browser.new_page(viewport=dict(width=width, height=960))
+    errors, requests = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: requests.append((request.method, request.url)))
+    page.goto(base + "/paper/analysis")
+    playwright.expect(page.locator("#simulator-rows tr")).to_have_count(49)
+    playwright.expect(page.locator("#simulator-sample")).to_contain_text(
+        "SAMPLE SIZE: 1"
+    )
+    assert page.locator("#simulator-rows tr.simulator-baseline").count() == 1
+    assert_no_page_overflow(page)
+    directory = Path(__file__).parents[1] / "artifacts"
+    directory.mkdir(exist_ok=True)
+    page.locator("#exit-simulator").scroll_into_view_if_needed()
+    page.screenshot(path=str(directory / f"exit-simulator-summary-{width}.png"))
+    page.goto(base + f"/paper/trades/{pid}")
+    playwright.expect(page.locator("#simulator-status")).to_contain_text("trade READY")
+    playwright.expect(page.locator("#price-chart-status")).to_contain_text(
+        "public candles"
+    )
+    page.locator("#simulator-scenario").select_option("TP_2PCT")
+    playwright.expect(page.locator("#simulator-selected")).to_contain_text(
+        "Conservative"
+    )
+    assert page.locator("#simulator-selected").text_content().find("ambiguous") >= 0
+    page.locator("#simulator-bound").select_option("optimistic_result")
+    playwright.expect(page.locator("#simulator-selected")).to_contain_text("Optimistic")
+    received = []
+    page.expose_function("captureMarker", lambda data: received.append(data))
+    page.evaluate(
+        "document.addEventListener('paper-simulated-exit',e=>window.captureMarker(e.detail))"
+    )
+    page.locator("#simulator-marker").check()
+    page.wait_for_timeout(50)
+    assert received and received[-1]["label"] == "WHAT-IF EXIT"
+    assert_no_page_overflow(page)
+    page.locator("#exit-simulator").scroll_into_view_if_needed()
+    page.screenshot(path=str(directory / f"exit-simulator-detail-{width}.png"))
+    page.locator("#trade-charts").scroll_into_view_if_needed()
+    page.screenshot(path=str(directory / f"exit-simulator-chart-{width}.png"))
+    assert all(
+        method == "GET" and url.startswith(base + "/") for method, url in requests
+    )
+    assert not errors
+    page.close()

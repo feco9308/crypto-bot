@@ -7,7 +7,7 @@
   const timeframe = document.querySelector('#trade-timeframe');
   const priceStatus = document.querySelector('#price-chart-status');
   let candles = [], scores = [], overlays = {}, extent = null, view = null;
-  let generation = 0, busy = false, controller = null;
+  let generation = 0, busy = false, controller = null, simulatedExit = null;
   const utc = ms => new Date(ms).toISOString().replace('T', ' ').replace('.000Z', ' UTC');
   const shortUtc = ms => new Date(ms).toISOString().slice(5,16).replace('T',' ');
   const finite = v => v !== null && v !== undefined && Number.isFinite(Number(v));
@@ -37,7 +37,7 @@
   }
   function markers(a) {
     const {ctx,x,top,bottom}=a;
-    [['BUY', overlays.entry_time,'#75dca2'],['SELL',overlays.exit_time,'#ff8686']].forEach(([label,time,color])=>{
+    [['BUY', overlays.entry_time,'#75dca2'],['SELL',overlays.exit_time,'#ff8686'],['WHAT-IF',simulatedExit?.time,'#bca3ff']].forEach(([label,time,color])=>{
       const t=Date.parse(time); if(!Number.isFinite(t) || t<view[0] || t>view[1]) return;
       ctx.strokeStyle=color; ctx.setLineDash([4,4]); ctx.beginPath();ctx.moveTo(x(t),top);ctx.lineTo(x(t),bottom);ctx.stroke();ctx.setLineDash([]);
       ctx.fillStyle=color;ctx.fillText(label,Math.min(a.right-32,x(t)+3),18);
@@ -63,6 +63,7 @@
       ctx.strokeStyle=ctx.fillStyle=color;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(left,y(value));ctx.lineTo(right,y(value));ctx.stroke();ctx.setLineDash([]);
       ctx.fillText(`${label} ${Number(value).toPrecision(5)}`,Math.max(left,right-140),y(value)-5);
     });
+    if(simulatedExit && finite(simulatedExit.price)){ctx.fillStyle='#bca3ff';ctx.beginPath();ctx.arc(x(Date.parse(simulatedExit.time)),y(Number(simulatedExit.price)),5,0,Math.PI*2);ctx.fill();}
     markers(a);
   }
   function drawScores() {
@@ -138,6 +139,7 @@
       status.textContent=canvas===priceCanvas?`${utc(near.time)} · O ${near.open} H ${near.high} L ${near.low} C ${near.close}`:`Snapshot #${near.id} · ${utc(near.time)} · Score ${near.score} · Δ4h ${near.delta_4h??'not recorded'}`;
     });
   });
+  document.addEventListener('paper-simulated-exit',e=>{simulatedExit=e.detail;draw();});
   new ResizeObserver(draw).observe(root);
   loadPrices();loadScores();
   const quotePanel=document.querySelector('#current-quote');let quoteBusy=false;

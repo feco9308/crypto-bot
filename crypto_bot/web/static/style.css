@@ -19,3 +19,5 @@ main,section,.table-scroll{min-width:0;box-sizing:border-box}section{max-width:1
  #trade-price-chart,#trade-score-chart{height:300px}
 }
 @media(max-width:700px){.analysis-recent .table-scroll{overflow:visible;max-height:none}.analysis-recent table,.analysis-recent tbody,.analysis-recent tr{display:block;white-space:normal}.analysis-recent thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}.analysis-recent tr{border:1px solid #526783;border-radius:8px;padding:8px;margin-bottom:12px}.analysis-recent td{display:grid;grid-template-columns:minmax(95px,40%) minmax(0,1fr);gap:8px;overflow-wrap:anywhere;padding:8px 4px}.analysis-recent td::before{content:attr(data-label);color:#a4b6cb}}
+
+.simulator-baseline{background:#243b41;font-weight:700}#exit-simulator pre{max-height:400px;overflow:auto}#exit-simulator select{max-width:100%;min-width:0}#exit-simulator label{max-width:100%;overflow-wrap:anywhere}

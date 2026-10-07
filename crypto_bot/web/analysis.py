@@ -30,7 +30,7 @@ from crypto_bot.storage.paper_models import (
 from crypto_bot.web.analysis_data import config, project, trade_query
 from crypto_bot.web.analysis_data import text as safe_text
 from crypto_bot.web.analysis_history import AnalysisHistory, HistoricalData
-from crypto_bot.web.analysis_metrics import summary
+from crypto_bot.web.analysis_metrics import actual_exit_metrics, summary
 from crypto_bot.web.analysis_readonly import ReadDatabase
 from crypto_bot.web.trade_audit import milliseconds
 
@@ -73,6 +73,8 @@ def filters(args):
 
 def conditions(value):
     result = []
+    if "position_id" in value:
+        result.append(PaperPosition.id == value["position_id"])
     for key, column in [
         ("status", PaperPosition.status),
         ("symbol", PaperPosition.symbol),
@@ -118,7 +120,11 @@ class AnalysisService:
             ).all()
             # Finish DB read before scheduling network work.
             trades = [project(row, now) for row in rows]
-        return [t | self.history.metrics(t, milliseconds(now)) for t in trades], total
+        return [self.enrich(t, now) for t in trades], total
+
+    def enrich(self, trade, now):
+        historical = self.history.metrics(trade, milliseconds(now))
+        return trade | historical | actual_exit_metrics(trade, historical)
 
     def meta(self, value, count):
         info = build_info()
@@ -265,9 +271,11 @@ class AnalysisService:
                 .order_by(PaperPosition.id.desc())
             ).all()
             trades = [project(row, now) for row in rows]
-        return [t | self.history.metrics(t, milliseconds(now)) for t in trades]
+        return [self.enrich(t, now) for t in trades]
 
     def close(self):
+        if hasattr(self, "simulator"):
+            self.simulator.close()
         self.aggregate_executor.shutdown(wait=False, cancel_futures=True)
         self.history.close()
         self.database.close()
@@ -291,6 +299,9 @@ def register_analysis(app, database, scanner_settings):
     history = AnalysisHistory(HistoricalData(scanner_settings.api_url))
     service = AnalysisService(database, history)
     app.extensions["paper_analysis"] = service
+    from crypto_bot.web.exit_simulator_api import register_exit_simulator
+
+    register_exit_simulator(app, service)
 
     def parsed():
         try:

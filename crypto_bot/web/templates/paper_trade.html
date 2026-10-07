@@ -48,5 +48,6 @@
 <h2>SCORE CHART · actual scanner snapshots</h2><p>Market Score: turquoise; Δ4h: gold (right axis). Individual recorded points only; gaps and missing deltas stay empty. Entry / exit markers retain their exact UTC timestamps.</p><p id="score-chart-status" role="status">Loading score history…</p><canvas id="trade-score-chart" aria-label="Recorded Market Score and delta 4h points with entry exit markers"></canvas><p id="score-chart-hover"></p>
 <details><summary>Actual score records (accessible data table)</summary><div class="table-scroll"><table><thead><tr><th>Snapshot ID</th><th>UTC</th><th>Score</th><th>Δ4h</th></tr></thead><tbody id="score-records"></tbody></table></div></details>
 </section>
+{% if position.status == 'CLOSED' %}{% include 'exit_simulator.html' %}{% endif %}
 <script defer src="{{ url_for('static',filename='trade_audit.js') }}"></script>
 {% endblock %}

@@ -205,4 +205,15 @@ def project(row, now):
         out[name] = getattr(snap, name) if snap else None
     for name in ("atr_pct", "momentum", "quote_volume", "volatility", "range_position"):
         out[name] = numeric(f.get(name))
+    reference = Decimal(out["strategy_reference_price"]) if s else None
+    ask = Decimal(str(out["entry_ask"])) if out["entry_ask"] is not None else None
+    atr = Decimal(str(out["atr"])) if out["atr"] is not None else None
+    out["entry_quote_drift_pct"] = (
+        float((ask / reference - 1) * 100) if ask is not None and reference else None
+    )
+    out["entry_quote_drift_atr"] = (
+        float((ask - reference) / atr)
+        if ask is not None and reference is not None and atr and atr > 0
+        else None
+    )
     return out

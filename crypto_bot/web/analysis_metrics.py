@@ -44,6 +44,39 @@ def empty_metrics(status="PENDING"):
     )
 
 
+def actual_exit_metrics(trade, historical):
+    """Additional descriptive fields; existing candle MAE remains untouched."""
+    closed = trade["status"] == "CLOSED"
+    actual = trade["return_pct"] if closed else None
+    mfe, mae = historical.get("mfe_pct"), historical.get("mae_pct")
+    bid = trade.get("exit_bid")
+    exit_move = (
+        (float(bid) / float(trade["entry_fill_price"]) - 1) * 100
+        if closed and bid is not None
+        else None
+    )
+    return dict(
+        actual_return_pct=actual,
+        actual_realized_pnl=trade["realized_pnl"] if closed else None,
+        profit_giveback_pct=max(0, mfe - actual)
+        if mfe is not None and actual is not None
+        else None,
+        # Percentage-point change from maximum favorable excursion to final return.
+        mfe_to_final_return_pct=actual - mfe
+        if mfe is not None and actual is not None
+        else None,
+        mfe_capture_ratio=actual / mfe
+        if mfe is not None and mfe > 0 and actual is not None
+        else None,
+        mfe_capture_status="NEGATIVE_FINAL_RETURN"
+        if actual is not None and actual < 0
+        else "DESCRIPTIVE_ONLY",
+        mae_including_exit_pct=min(mae, exit_move)
+        if mae is not None and exit_move is not None
+        else None,
+    )
+
+
 def historical_metrics(trade, candles, interval, now_ms):
     """Whole candles only: never attribute pre-entry/post-exit extrema to the trade.
 

@@ -1,0 +1,18 @@
+<section id="exit-simulator" class="analysis-recent" data-position-id="{{ position.id if position is defined else '' }}" data-summary-url="{{ url_for('exit_simulator_summary') }}" data-trades-url="{{ url_for('exit_simulator_trades') }}">
+<h2>{{ 'WHAT-IF EXIT ANALYSIS' if position is defined else 'EXIT STRATEGY SIMULATOR' }}</h2>
+<p>READ-ONLY COUNTERFACTUAL ANALYSIS ONLY · Actual entry fill and original stop retained; actual paper exit is the fallback. Default: conservative result.</p>
+<p>BINANCE_PUBLIC_KLINES_APPROXIMATION · Candle data is not bid/ask. OHLC cannot reconstruct tick order. Conservative / optimistic bounds use possible monotone OHLC legs, partial activation and open gaps; boundary candles are excluded. No tick-exact exit time is claimed.</p>
+<p>Fee/slippage: recorded entry configuration. Missing data/config means unavailable. Profit giveback uses percentage points; negative MFE capture is descriptive, not a quality judgment.</p>
+{% if position is not defined %}<p>Simulator filters: symbol and entry-time From/To above. CLOSED trades only; the Status/Strategy filters apply to the original analysis sections.</p>{% endif %}
+<p id="simulator-status" role="status">Loading counterfactual analysis…</p>
+<p id="simulator-sample" class="health-PAUSED">SAMPLE SIZE: — · NOT STATISTICALLY VALIDATED</p>
+{% if position is defined %}<dl class="audit-metrics" id="simulator-actual"></dl>
+<label>Scenario <select id="simulator-scenario"><option value="BASELINE">BASELINE</option></select></label>
+<label>Result bound <select id="simulator-bound"><option value="conservative_result">Conservative (default)</option><option value="optimistic_result">Optimistic</option></select></label>
+<label><input type="checkbox" id="simulator-marker"> Show selected what-if exit marker on price chart</label>
+<p id="simulator-selected"></p>{% endif %}
+<div class="table-scroll"><table><thead><tr>{% for label in ['Scenario','Trades / usable','Win rate %','Avg return %','Total PnL','Δ PnL vs actual','Ambiguous'] %}<th>{{ label }}</th>{% endfor %}</tr></thead><tbody id="simulator-rows"></tbody></table></div>
+<details><summary>Scenario parameters and OHLC bounds</summary><pre id="simulator-audit">Loading…</pre></details>
+<noscript>JavaScript is required for the simulator. Stored paper audit records remain available above.</noscript>
+</section>
+<script defer src="{{ url_for('static',filename='exit_simulator.js') }}"></script>
