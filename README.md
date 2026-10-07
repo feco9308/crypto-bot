@@ -401,3 +401,83 @@ fejlesztési alternatíva; ne indíts vele process-t a systemd által kezelt mel
 
 A megőrzött migration backupok és a részletes `ROLLBACK.md` helye:
 `/home/ndvi/crypto-bot-backups/20261005-194519-UTC/`.
+
+### Read-only Exit Strategy Simulator
+
+`/paper/analysis` contains **EXIT STRATEGY SIMULATOR**. CLOSED position pages
+(`/paper/trades/<id>`) contain **WHAT-IF EXIT ANALYSIS**, a scenario selector,
+conservative/optimistic bounds and an optional what-if chart marker. These results
+never generate signals/orders, alter permissions, change trading ON/OFF, or write
+to the account, positions, fills or historical audit records. **NO LIVE TRADING.**
+
+The 49 analysis presets include the recorded **BASELINE**, fixed TP (0.5–5%),
+R-multiple TP (0.5–3R), break-even activation (0.5/1/1.5R) with 0/0.1/0.2% buffers,
+percentage and R-based trailing stops, and four independent profit locks.
+Preset parameters live in `crypto_bot/web/exit_simulator.py:scenarios`; changing
+these analysis presets does not change the trading engine. There is no simulator
+configuration-write endpoint.
+
+Every alternative retains the actual entry fill, quantity and entry fee. Original
+stop protection remains active and can only ratchet upward. The first overlay or
+original-stop exit on a possible path wins; otherwise the **exact recorded actual
+exit** is used, including its recorded costs. Earlier hypothetical SELL fills use
+the original entry signal's recorded `paper_fee_pct` / `paper_slippage_pct`,
+with the same downward Decimal quantization as the paper ledger. Missing original
+configuration is **UNAVAILABLE**, rather than substituted by current settings.
+
+Historical data shares the existing public kline cache and bounded background
+worker: 1m preferred, 5m fallback (including the existing long-range bounds).
+Each path is loaded once and used by all scenarios. Simulator CPU work also runs
+in a bounded single worker; HTTP requests return **PENDING** while it runs. Cache
+is process-local, expires and resets on web restart; there is no database migration.
+The historical cache retains at most 100,000 candle observations / 512 results;
+the simulator retains 512 results, with at most 32 queued trade calculations.
+
+**BINANCE_PUBLIC_KLINES_APPROXIMATION** is not bid/ask history or tick-accurate
+execution. Only complete, contiguous, fully contained candles are simulated;
+entry/exit boundary candles are excluded. No data or gaps mean unavailable
+alternatives; baseline stays available. Outcomes branch over HIGH/LOW ordering
+and possible partial trailing activation before the full HIGH. Open gaps fill at
+the candle open; stop fills are not guaranteed at the threshold after a gap.
+Results are conservative/optimistic bounds under this stated monotone price-leg
+model, not exhaustive reconstruction of real intrabar ticks. Intrabar trigger
+timestamps are candle-open timestamps, explicitly labeled as such. Default UI
+and summary statistics use **conservative** results.
+
+Read-only APIs (GET/HEAD only, alongside Flask OPTIONS):
+
+```text
+GET /api/paper/analysis/exit-simulator
+GET /api/paper/analysis/exit-simulator/summary
+```
+
+Filters: `position_id`, `symbol`, `from`, `to` (UTC entry-time range), optional
+`scenario` (exact preset name, available in `scenario_catalog`). The trade endpoint
+supports `limit` (default 50, maximum 100) and `offset`; summary covers all matching
+CLOSED trades. Example:
+
+```text
+/api/paper/analysis/exit-simulator?symbol=AVAXUSDT&scenario=TP_2PCT
+/api/paper/analysis/exit-simulator/summary?from=2026-10-01T00:00:00Z
+```
+
+Scenario results include trigger/fill/costs, net return, PnL differences, both
+bounds, ambiguity and data provenance. Summary reports usable/ambiguous counts
+per scenario; missing alternatives never become zero returns or successful trades.
+The UI displays **SAMPLE SIZE** and **NOT STATISTICALLY VALIDATED**, without
+claiming a best strategy. Overlapping hypothetical trades do not define a valid
+portfolio equity curve, so drawdown proxy is deliberately null.
+
+Additional analysis/export fields: `entry_quote_drift_pct` (recorded ask versus
+closed-candle strategy reference), `entry_quote_drift_atr` (null for missing/zero
+ATR), and `mae_including_exit_pct` (interior candle MAE extended by the actual exit
+bid). Existing candle MAE stays separate. `profit_giveback_pct` is
+`max(0, MFE − net actual return)` in percentage points;
+`mfe_to_final_return_pct` is the signed `net actual return − MFE` gap.
+MFE capture ratio is `net actual return / MFE` when MFE is positive, with negative
+final returns explicitly labeled. Summary giveback compares the **actual trade
+horizon's MFE** to the hypothetical net return; it is not a claim that a position
+closed early owned a later peak.
+
+Deployment needs only a web restart. Do not restart scanner/paper engine or
+change the account ON/OFF state for this analysis feature.
