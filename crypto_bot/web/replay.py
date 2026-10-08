@@ -6,9 +6,16 @@ import time
 from pathlib import Path
 
 from flask import Response, abort, jsonify, render_template, request, session
+from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 
 from crypto_bot.replay.cache import CandleCache
-from crypto_bot.replay.config import isolated_paths, validate
+from crypto_bot.replay.config import (
+    ConfigValidationError,
+    input_config,
+    invalid,
+    isolated_paths,
+    validate,
+)
 from crypto_bot.replay.exporter import bundle, csv_export, payload
 from crypto_bot.replay.models import ReplayStore
 from crypto_bot.replay.registry import EXITS, STRATEGIES
@@ -49,6 +56,22 @@ def register_replay(app, production_database):
         if not token or not hmac.compare_digest(token, session.get("csrf", "")):
             abort(403, "Invalid CSRF token; reload the Replay Lab")
 
+    @app.errorhandler(ConfigValidationError)
+    def replay_validation_error(error):
+        return jsonify(valid=False, errors=error.errors), 400
+
+    def json_body():
+        try:
+            return request.get_json()
+        except (BadRequest, UnsupportedMediaType):
+            invalid("$", "Malformed JSON; supply a valid JSON object")
+
+    @app.post("/api/replay/config/validate")
+    def replay_validate_config():
+        csrf()
+        # Pure validation: no store, run creation, preset save or worker action.
+        return jsonify(valid=True, config=input_config(validate(json_body())))
+
     @app.before_request
     def replay_body_limit():
         if request.path.startswith("/api/replay/"):
@@ -73,8 +96,10 @@ def register_replay(app, production_database):
     def replay_create():
         csrf()
         try:
-            config = validate(request.get_json())
+            config = validate(json_body())
             run_id = store()[0].create(config)
+        except ConfigValidationError:
+            raise
         except (ValueError, KeyError, TypeError) as exc:
             abort(400, str(exc))
         return jsonify(run_id=run_id, url=f"/replay/runs/{run_id}"), 202
@@ -274,8 +299,10 @@ def register_replay(app, production_database):
         if request.method == "POST":
             csrf()
             try:
-                value = request.get_json()
+                value = json_body()
                 db.presets(value["name"], validate(value["config"]))
+            except ConfigValidationError:
+                raise
             except (KeyError, TypeError, ValueError) as exc:
                 abort(400, str(exc))
         return jsonify(presets=db.presets())

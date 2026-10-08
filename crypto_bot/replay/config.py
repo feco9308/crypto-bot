@@ -2,6 +2,7 @@
 
 import copy
 import json
+import re
 from dataclasses import fields, replace
 from datetime import datetime, timezone
 from decimal import DecimalException
@@ -29,67 +30,202 @@ RISK_NAMES = (
 )
 
 
-def converted(default, values, allowed):
-    if not isinstance(values, dict) or set(values) - set(allowed):
-        raise ValueError("Unknown configuration field")
-    out = {}
+INPUT_FIELDS = (
+    "start",
+    "end",
+    "universe_size",
+    "variants",
+    "dataset_role",
+    "fallback_5m",
+    "conservative",
+    "minimum_quote_volume",
+    "spread_approximation_pct",
+    "candidate_symbols",
+    "name",
+)
+VARIANT_FIELDS = (
+    "name",
+    "strategy",
+    "strategy_parameters",
+    "exit_policy",
+    "exit_parameters",
+    "risk_parameters",
+)
+
+
+class ConfigValidationError(ValueError):
+    def __init__(self, errors):
+        self.errors = errors
+        super().__init__("; ".join(f"{e['field']}: {e['message']}" for e in errors))
+
+
+def invalid(field, message):
+    raise ConfigValidationError([dict(field=field, message=message)])
+
+
+def at_field(field, callback):
+    try:
+        return callback()
+    except ConfigValidationError:
+        raise
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        DecimalException,
+        OverflowError,
+    ) as exc:
+        message = (
+            "Must be a finite number" if isinstance(exc, DecimalException) else str(exc)
+        )
+        invalid(field, message or "Invalid value")
+
+
+def object_fields(value, allowed, path):
+    if not isinstance(value, dict):
+        invalid(path, "Must be a JSON object")
+    unknown = sorted(set(value) - set(allowed))
+    if unknown:
+        raise ConfigValidationError(
+            [
+                dict(field=f"{path}.{k}" if path != "$" else k, message="Unknown field")
+                for k in unknown
+            ]
+        )
+
+
+def input_config(snapshot):
+    """The existing POST request schema, with all effective defaults explicit.
+
+    Stored run snapshots also contain derived engine metadata. That internal
+    metadata is deliberately not another user import format.
+    """
+    result = {k: copy.deepcopy(snapshot[k]) for k in INPUT_FIELDS}
+    result["variants"] = [
+        {k: copy.deepcopy(v[k]) for k in VARIANT_FIELDS} for v in snapshot["variants"]
+    ]
+    return result
+
+
+def converted(default, values, allowed, path="parameters"):
+    object_fields(values, allowed, path)
+    out, errors = {}, []
     for k, v in values.items():
-        old = getattr(default, k)
-        if isinstance(old, bool):
-            if type(v) is not bool:
-                raise ValueError(f"{k} must be boolean")
-            out[k] = v
-        elif isinstance(old, int):
-            if type(v) is not int:
-                raise ValueError(f"{k} must be integer")
-            out[k] = v
-        elif isinstance(old, str):
-            if not isinstance(v, str):
-                raise ValueError(f"{k} must be string")
-            out[k] = v
-        elif isinstance(old, float):
-            out[k] = float(v)
-        else:
-            out[k] = D(v)
+
+        def convert():
+            old = getattr(default, k)
+            if isinstance(old, bool):
+                if type(v) is not bool:
+                    raise ValueError("Must be boolean")
+                return v
+            if isinstance(old, int):
+                if type(v) is not int:
+                    raise ValueError("Must be integer")
+                return v
+            if isinstance(old, str):
+                if not isinstance(v, str):
+                    raise ValueError("Must be string")
+                return v
+            return float(v) if isinstance(old, float) else D(v)
+
+        try:
+            out[k] = at_field(f"{path}.{k}", convert)
+        except ConfigValidationError as exc:
+            errors.extend(exc.errors)
+    if errors:
+        raise ConfigValidationError(errors)
     return out
 
 
 def variant(value, index=0):
-    if not isinstance(value, dict) or set(value) - {
-        "name",
-        "strategy",
-        "strategy_parameters",
-        "exit_policy",
-        "exit_parameters",
-        "risk_parameters",
-    }:
-        raise ValueError("Unknown variant field")
-    definition = STRATEGIES.get(value.get("strategy", "watchlist_reference_v1"))
+    path = f"variants[{index}]"
+    object_fields(value, VARIANT_FIELDS, path)
+    errors = []
+    try:
+        definition = at_field(
+            f"{path}.strategy",
+            lambda: STRATEGIES.get(value.get("strategy", "watchlist_reference_v1")),
+        )
+    except ConfigValidationError as exc:
+        errors.extend(exc.errors)
     policy = value.get("exit_policy", "baseline_v1")
-    defaults = EXITS.get(policy)
+    try:
+        defaults = at_field(f"{path}.exit_policy", lambda: EXITS.get(policy))
+    except ConfigValidationError as exc:
+        errors.extend(exc.errors)
+    if errors:
+        raise ConfigValidationError(errors)
     params = value.get("exit_parameters", {})
-    if not isinstance(params, dict) or set(params) - set(defaults):
-        raise ValueError("Unknown exit parameter")
+    object_fields(params, defaults, f"{path}.exit_parameters")
     params = defaults | params
-    params = {k: str(D(v)) for k, v in params.items()}
+    params = {
+        k: at_field(f"{path}.exit_parameters.{k}", lambda v=v: str(D(v)))
+        for k, v in params.items()
+    }
     for k, v in params.items():
         if D(v) < 0 or D(v) > 100 or (k != "buffer_pct" and D(v) == 0):
-            raise ValueError("Invalid exit parameter")
-    if any(D(params[k]) >= 100 for k in ("distance_pct", "tp_pct") if k in params):
-        raise ValueError("Invalid percentage exit parameter")
+            invalid(
+                f"{path}.exit_parameters.{k}",
+                "Must be between 0 and 100; only buffer_pct may be zero",
+            )
+    for key in ("distance_pct", "tp_pct"):
+        if key in params and D(params[key]) >= 100:
+            invalid(f"{path}.exit_parameters.{key}", "Percentage must be below 100")
     if policy == "profit_lock" and D(params["lock_pct"]) >= D(params["activation_pct"]):
-        raise ValueError("Profit lock must be below activation")
+        invalid(f"{path}.exit_parameters.lock_pct", "Must be below activation_pct")
     paper = PaperSettings()
-    paper = replace(
-        paper,
-        **converted(paper, value.get("risk_parameters", {}), RISK_NAMES),
-        **converted(paper, value.get("strategy_parameters", {}), definition.parameters),
-    )
-    if paper.delta_window not in (1, 4, 24) or paper.max_open_positions > 100:
-        raise ValueError("Unsupported delta window or position count")
+    values, errors = {}, []
+    for group, allowed in (
+        ("risk_parameters", RISK_NAMES),
+        ("strategy_parameters", definition.parameters),
+    ):
+        try:
+            values.update(
+                converted(paper, value.get(group, {}), allowed, f"{path}.{group}")
+            )
+        except ConfigValidationError as exc:
+            errors.extend(exc.errors)
+    if errors:
+        raise ConfigValidationError(errors)
+    try:
+        paper = replace(paper, **values)
+    except ValueError as exc:
+        message = str(exc)
+        names = [
+            f.name for f in fields(paper) if re.search(r"\b" + f.name + r"\b", message)
+        ]
+        if message == "Invalid strategy/slippage thresholds":
+            names = [
+                k
+                for k in (
+                    "min_rsi",
+                    "max_rsi",
+                    "min_score",
+                    "exit_score",
+                    "paper_slippage_pct",
+                )
+                if k in values
+            ]
+        if "Pyramiding" in message:
+            names = ["pyramiding"]
+        raise ConfigValidationError(
+            [
+                dict(
+                    field=f"{path}.{'risk_parameters' if k in RISK_NAMES else 'strategy_parameters'}.{k}",
+                    message=message,
+                )
+                for k in names
+            ]
+            or [dict(field=path, message=message)]
+        ) from exc
+    if paper.delta_window not in (1, 4, 24):
+        invalid(f"{path}.strategy_parameters.delta_window", "Must be 1, 4 or 24")
+    if paper.max_open_positions > 100:
+        invalid(f"{path}.risk_parameters.max_open_positions", "Must be at most 100")
     name = value.get("name", f"Variant {index + 1}")
     if not isinstance(name, str) or not 1 <= len(name) <= 80:
-        raise ValueError("Invalid variant name")
+        invalid(f"{path}.name", "Must be a string of 1..80 characters")
     snapshot = paper.public_dict()
     return dict(
         name=name,
@@ -112,52 +248,52 @@ def settings_for(value):
 
 
 def validate(value):
-    try:
-        return _validate(value)
-    except (DecimalException, OverflowError) as exc:
-        raise ValueError("Invalid numeric replay parameter") from exc
+    return _validate(value)
 
 
 def _validate(value):
-    if not isinstance(value, dict) or set(value) - {
-        "start",
-        "end",
-        "universe_size",
-        "variants",
-        "dataset_role",
-        "fallback_5m",
-        "conservative",
-        "minimum_quote_volume",
-        "spread_approximation_pct",
-        "candidate_symbols",
-        "name",
-    }:
-        raise ValueError("Unknown replay configuration field")
-    start, end = utc(value["start"]), utc(value["end"])
+    object_fields(value, INPUT_FIELDS, "$")
+    dates, errors = {}, []
+    for key in ("start", "end"):
+
+        def date():
+            if key not in value:
+                raise ValueError("Required")
+            if not isinstance(value[key], str):
+                raise ValueError("Must be an ISO-8601 date/time string")
+            return utc(value[key])
+
+        try:
+            dates[key] = at_field(key, date)
+        except ConfigValidationError as exc:
+            errors.extend(exc.errors)
+    if errors:
+        raise ConfigValidationError(errors)
+    start, end = dates["start"], dates["end"]
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    if (
-        start < datetime(2017, 8, 1)
-        or end <= start
-        or end > now
-        or (end - start).days > 1096
-    ):
-        raise ValueError(
-            "Historical period must be in the past, positive, at most three years"
-        )
-    if ms(start) % 3600000 or ms(end) % 3600000:
-        raise ValueError("Use whole UTC hours; end is exclusive")
+    if start < datetime(2017, 8, 1):
+        invalid("start", "Must be August 2017 or later")
+    if end <= start:
+        invalid("end", "Must be after start (exclusive end)")
+    if end > now:
+        invalid("end", "Must be in the past")
+    if (end - start).days > 1096:
+        invalid("end", "Period must be at most three years")
+    for key, date in dates.items():
+        if ms(date) % 3600000:
+            invalid(key, "Use whole UTC hours; end is exclusive")
     top = value.get("universe_size", 50)
     if type(top) is not int or not 1 <= top <= 200:
-        raise ValueError("Universe size must be 1..200")
+        invalid("universe_size", "Must be an integer between 1 and 200")
     role = value.get("dataset_role", "EXPLORATION")
     if role not in ("EXPLORATION", "VALIDATION", "OUT_OF_SAMPLE"):
-        raise ValueError("Invalid dataset role")
+        invalid("dataset_role", "Must be EXPLORATION, VALIDATION or OUT_OF_SAMPLE")
     for k in ("fallback_5m", "conservative"):
         if k in value and type(value[k]) is not bool:
-            raise ValueError("Expected boolean execution parameter")
+            invalid(k, "Must be boolean")
     raw = value.get("variants", [{}])
     if not isinstance(raw, list) or not 1 <= len(raw) <= 10:
-        raise ValueError("Choose 1..10 variants")
+        invalid("variants", "Choose 1..10 variants")
 
     candidates = value.get("candidate_symbols")
     if candidates is not None and (
@@ -165,12 +301,32 @@ def _validate(value):
         or not 1 <= len(candidates) <= 1500
         or any(not valid_symbol(s) for s in candidates)
     ):
-        raise ValueError("Invalid explicit research universe")
-    minimum = D(value.get("minimum_quote_volume", 5000000))
-    spread = D(value.get("spread_approximation_pct", "0.02"))
-    if minimum < 0 or not 0 <= spread <= D(".2"):
-        raise ValueError("Invalid historical volume/spread model")
-    scanner = Settings(number_of_markets=top, minimum_quote_volume=float(minimum))
+        invalid(
+            "candidate_symbols", "Must be null or 1..1500 valid USDT symbol strings"
+        )
+    minimum = at_field(
+        "minimum_quote_volume", lambda: D(value.get("minimum_quote_volume", 5000000))
+    )
+    spread = at_field(
+        "spread_approximation_pct",
+        lambda: D(value.get("spread_approximation_pct", "0.02")),
+    )
+    if minimum < 0:
+        invalid("minimum_quote_volume", "Must be nonnegative")
+    if not 0 <= spread <= D(".2"):
+        invalid("spread_approximation_pct", "Must be between 0 and 0.2")
+    scanner = at_field(
+        "minimum_quote_volume",
+        lambda: Settings(number_of_markets=top, minimum_quote_volume=float(minimum)),
+    )
+    variants, errors = [], []
+    for i, v in enumerate(raw):
+        try:
+            variants.append(variant(v, i))
+        except ConfigValidationError as exc:
+            errors.extend(exc.errors)
+    if errors:
+        raise ConfigValidationError(errors)
     scanner_snapshot = scanner.public_dict()
     for k in ("database_url", "secret_key", "api_url"):
         scanner_snapshot.pop(k, None)
@@ -193,7 +349,7 @@ def _validate(value):
         score_version="heuristic-v1",
         score_weights=copy.deepcopy(scanner.weights),
         scanner_settings=scanner_snapshot,
-        variants=[variant(v, i) for i, v in enumerate(raw)],
+        variants=variants,
         dataset_role=role,
         fallback_5m=value.get("fallback_5m", False),
         conservative=value.get("conservative", True),
