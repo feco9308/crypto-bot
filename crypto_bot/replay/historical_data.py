@@ -15,15 +15,20 @@ import requests
 
 from crypto_bot.data.base import Candle
 from crypto_bot.replay.clock import at
+from crypto_bot.replay.symbols import valid_symbol
 
 ARCHIVE = "https://data.binance.vision/"
 CATALOG = "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision"
 
 
 class HistoricalData:
+    parallelism = 3
+
     def __init__(self, cache, session=None, check=None, progress=None, pause=0.15):
         self.cache = cache
         self.session = session or requests.Session()
+        self.supplied_session = session is not None
+        self.local = threading.local()
         self.check = check or (lambda: None)
         self.progress = progress or (lambda **_: None)
         self.pause = pause
@@ -41,9 +46,13 @@ class HistoricalData:
             self.check()
             time.sleep(max(0, self.pause - (time.monotonic() - self.last_request)))
             self.last_request = time.monotonic()
-            response = self.session.get(
-                url, timeout=(10, 20), allow_redirects=False, **kwargs
-            )
+        if self.supplied_session:
+            session = self.session
+        else:
+            if not hasattr(self.local, "session"):
+                self.local.session = requests.Session()
+            session = self.local.session
+        response = session.get(url, timeout=(10, 20), allow_redirects=False, **kwargs)
         if response.status_code in (429, 418, 503):
             response.close()
             raise RuntimeError(
@@ -180,9 +189,7 @@ class HistoricalData:
     def ensure(self, symbol, interval, start, end):
         if interval not in ("1h", "1m", "5m"):
             raise ValueError("Unsupported replay interval")
-        import re
-
-        if not re.fullmatch(r"[A-Z0-9]{2,30}USDT", symbol):
+        if not valid_symbol(symbol):
             raise ValueError("Invalid symbol")
         first = at(start)
         last = at(end - 1)

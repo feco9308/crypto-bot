@@ -9,6 +9,7 @@ from pathlib import Path
 from crypto_bot.config.settings import Settings
 from crypto_bot.replay.clock import ms, utc
 from crypto_bot.replay.registry import EXITS, STRATEGIES
+from crypto_bot.replay.symbols import valid_symbol
 from crypto_bot.trading.config import PaperSettings
 from crypto_bot.trading.domain import D
 
@@ -149,16 +150,12 @@ def validate(value):
     raw = value.get("variants", [{}])
     if not isinstance(raw, list) or not 1 <= len(raw) <= 10:
         raise ValueError("Choose 1..10 variants")
-    import re
 
     candidates = value.get("candidate_symbols")
     if candidates is not None and (
         not isinstance(candidates, list)
         or not 1 <= len(candidates) <= 1500
-        or any(
-            not isinstance(s, str) or not re.fullmatch(r"[A-Z0-9]{2,30}USDT", s)
-            for s in candidates
-        )
+        or any(not valid_symbol(s) for s in candidates)
     ):
         raise ValueError("Invalid explicit research universe")
     minimum = D(value.get("minimum_quote_volume", 5000000))

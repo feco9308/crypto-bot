@@ -2,6 +2,7 @@
 
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from datetime import datetime
 from types import SimpleNamespace
@@ -369,24 +370,35 @@ class ReplayEngine:
         candidates = [s for s in candidates if HistoricalUniverse.allowed(s, scanner)]
         cache_began = time.perf_counter()
         histories = {}
-        for i, symbol in enumerate(candidates):
+
+        def load(symbol):
             self.check()
-            rows = self.provider.hourly(symbol, clock.now_ms, end)
-            if rows:
-                histories[symbol] = CandleHistory(rows)
-            if i % 10 == 0:
-                self.store.update(
-                    run_id,
-                    progress=dict(
-                        cache_state="CACHE DOWNLOAD",
-                        candidate_count=len(candidates),
-                        candidates_loaded=i + 1,
-                        cache_hits=self.provider.hits,
-                        downloaded_candles=self.provider.downloaded,
-                        cache_missing=self.provider.missing,
-                    ),
-                    heartbeat=time.time(),
-                )
+            return symbol, CandleHistory(
+                self.provider.hourly(symbol, clock.now_ms, end)
+            )
+
+        # Bounded in-flight downloads; consume deterministically in catalog order.
+        # Submit only a small batch, so futures cannot retain all archive objects.
+        concurrency = getattr(self.provider, "parallelism", 1)
+        with ThreadPoolExecutor(max_workers=concurrency) as pool:
+            for offset in range(0, len(candidates), concurrency):
+                for i, (symbol, rows) in enumerate(
+                    pool.map(load, candidates[offset : offset + concurrency]), offset
+                ):
+                    if rows:
+                        histories[symbol] = rows
+                    if i % 10 == 0:
+                        self.store.merge_progress(
+                            run_id,
+                            dict(
+                                cache_state="CACHE DOWNLOAD",
+                                candidate_count=len(candidates),
+                                candidates_loaded=i + 1,
+                                cache_hits=self.provider.hits,
+                                downloaded_candles=self.provider.downloaded,
+                                cache_missing=self.provider.missing,
+                            ),
+                        )
         self.profile["hourly_cache_seconds"] += time.perf_counter() - cache_began
         if not histories:
             raise ValueError("No historical candles in selected research universe")

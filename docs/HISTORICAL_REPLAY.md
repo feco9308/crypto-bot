@@ -169,6 +169,10 @@ Run config/progress/checkpoint live in replay_runs; variant summaries contain
 period/symbol/bucket metrics; replay_trades represents both OPEN/CLOSED positions.
 Orders, fills, equity and audit events have separate replay tables.
 
+Hourly preload uses at most three concurrent downloads with shared 0.15-second
+request pacing and independent HTTP sessions. One-character and Unicode asset
+names are accepted; URL/path/query characters are rejected.
+
 Downloads use GET-only [Binance public Spot archive data](https://github.com/binance/binance-public-data/blob/master/README.md),
 not a trading API. Monthly ZIPs are reused; recent unavailable months can use daily
 archives. Objects support HTTP Range resume, bounded sizes and local SHA256

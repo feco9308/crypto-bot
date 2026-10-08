@@ -21,6 +21,7 @@ from crypto_bot.replay.engine import ReplayEngine, Variant
 from crypto_bot.replay.exporter import bundle, csv_export, payload
 from crypto_bot.replay.historical_data import HistoricalData
 from crypto_bot.replay.models import ReplayStore
+from crypto_bot.replay.symbols import valid_symbol
 from crypto_bot.replay.universe import HistoricalUniverse
 from crypto_bot.replay.worker import Cancelled, ReplayWorker, Stopping
 from crypto_bot.storage.database import Database
@@ -92,6 +93,28 @@ def test_archive_missing_cached_and_no_fabricated_prices(tmp_path):
     assert provider.missing == 2
 
 
+@pytest.mark.parametrize("symbol", ["BUSDT", "CUSDT", "币安人生USDT", "1MBABYDOGEUSDT"])
+def test_archive_valid_single_character_and_unicode_identifiers(tmp_path, symbol):
+    assert valid_symbol(symbol)
+    captured = config(candidate_symbols=[symbol])
+    assert captured["candidate_symbols"] == [symbol]
+    http = Mock()
+    http.get.return_value.status_code = 404
+    provider = HistoricalData(CandleCache(tmp_path / "cache"), http, pause=0)
+    assert provider.hourly(symbol, START, START + 3600000) == []
+    http.get.assert_called_once()
+    assert http.get.call_args.args[0].startswith(
+        "https://data.binance.vision/data/spot/"
+    )
+
+
+@pytest.mark.parametrize(
+    "symbol", ["USDT", "../BTCUSDT", "BTC/USDT", "BTCUSDT?x=1", "btcUSDT", "BTC\nUSDT"]
+)
+def test_archive_identifier_rejects_path_or_query_injection(symbol):
+    assert not valid_symbol(symbol)
+
+
 def test_future_close_is_excluded_from_universe():
     rows = Synthetic().hourly("BTCUSDT", START - 524 * 3600000, START)
     candle, volume = rows[-2]
@@ -141,6 +164,19 @@ def test_future_data_cannot_change_past_decisions(tmp_path):
         cutoff = at(START + 24 * 3600000).isoformat() + "Z"
         results.append([e for e in events if e["timestamp"] < cutoff])
     assert results[0] and results[0] == results[1]
+
+
+def test_bounded_parallel_preload_preserves_deterministic_results(tmp_path):
+    class Parallel(Synthetic):
+        parallelism = 3
+
+    results = []
+    for i, provider in enumerate((Synthetic(), Parallel())):
+        db = ReplayStore(tmp_path / str(i) / "replay.db")
+        run_id = db.create(config(end="2025-01-02"))
+        ReplayEngine(db, provider).run(run_id)
+        results.append((db.data(run_id), db.get(run_id)["variants"][0]["summary"]))
+    assert results[0] == results[1]
 
 
 def test_restart_checkpoint_matches_uninterrupted_run(tmp_path):
