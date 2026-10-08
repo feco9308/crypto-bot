@@ -47,6 +47,10 @@ def observe(candle, position, model, conservative=True):
         return None, False, [D(str(candle["high"])), D(str(candle["low"]))]
     candidates.sort(key=lambda v: (v[0][0], v[0][1], v[1]))
     hit, points, updated = candidates[0] if conservative else candidates[-1]
+    # Preserve the selected path's actual ratcheted threshold for closed-trade audit.
+    position.highest = updated.highest
+    position.stop_price = updated.stop
+    position.overlay_active = updated.active
     signatures = {(h[0], h[1]) for h, _, _ in candidates}
     ambiguous = len(signatures) > 1 or bool(survivors)
     visited = [points[0]]

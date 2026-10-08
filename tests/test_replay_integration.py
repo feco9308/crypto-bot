@@ -279,6 +279,10 @@ def test_overlay_exits_without_original_stop(policy, params, reason):
     assert v.closed[0]["exit_reason"] == reason
     assert D(v.closed[0]["fees"]) > 0
     assert v.ledger.account.reserved_cash == 0
+    if policy not in ("fixed_tp", "r_tp"):
+        assert D(v.closed[0]["stop_price"]) > D(v.closed[0]["original_stop_price"])
+        fill = v.execution.fills[-1]
+        assert D(fill["reference_price"]) == D(v.closed[0]["stop_price"])
 
 
 def test_strategy_exit_links_and_duplicate_protection():
