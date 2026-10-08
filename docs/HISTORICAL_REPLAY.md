@@ -342,6 +342,18 @@ presets and downloads. Deployment validation results are in
 
 ## WHAT THIS BACKTEST CANNOT PROVE
 
+Blocked BUY attempts are reported by exact existing audit strings in
+`summary.blocked_entry_reasons`, with reporting categories in
+`blocked_entry_categories`. Legacy `blocked_entries` totals remain unchanged.
+Both normal and compact JSON include the breakdown; existing runs are enriched
+from their audits on read without rewriting records. Incomplete audit coverage is
+marked explicitly. Fresh-mark rejections identify missing symbols in new runs;
+the result UI warns when new BUYs were blocked by unavailable portfolio marks.
+See the [2024 baseline investigation](REPLAY_BLOCKED_ENTRY_INVESTIGATION.md):
+its 5000 other attempts were 4999 missing-portfolio-mark rejections and one missing
+entry minute. An open FRONTUSDT position lost archive coverage, halting new entries
+and leaving a stale final mark. The guard and trading semantics were preserved.
+
 Historical performance is not evidence of future profit. OHLC is not tick/order
 book data: paths, fills, spread, liquidity and slippage are approximations.
 Exchange filters, minimum lots, market impact, latency, partial fills and execution
