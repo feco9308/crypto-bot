@@ -340,6 +340,15 @@ isolation. Real Chromium checks desktop/mobile forms, chart/details, comparison,
 presets and downloads. Deployment validation results are in
 `docs/HISTORICAL_REPLAY_VALIDATION.md`.
 
+## Replay stale-position policies
+
+`stale_position_policy` defaults to `STRICT_FRESH_MARKS` (including old configs).
+`RESEARCH_QUARANTINE_STALE` permits unrelated entries while retaining stale
+capital, exposure and position slots; stale gains cannot increase risk sizing.
+There is no forced liquidation or future-coverage lookup. Results and comparison
+warn about stale valuations and exclude affected variants from ranking. See
+[exact valuation, resumption and metadata semantics](REPLAY_STALE_POLICY.md).
+
 ## WHAT THIS BACKTEST CANNOT PROVE
 
 Blocked BUY attempts are reported by exact existing audit strings in

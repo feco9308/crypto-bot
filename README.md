@@ -498,6 +498,9 @@ ugyanazzal a backend sémával ellenőriz, mint a normál run API, és csak kit�
 az űrlapot és a variánsokat; futás kizárólag **START REPLAY** után indul.
 Az exportált konfiguráció változtatás nélkül elküldhető a `POST /api/replay/runs`
 végpontra. A konfigurációexport külön funkció az eredmények exportjától.
+A replay stale policy alapértéke `STRICT_FRESH_MARKS`; kutatáshoz választható
+`RESEARCH_QUARANTINE_STALE`. A karantén megtartja a tőkét/exposure-t és a pozíció
+helyét, nem zárja le hamis áron a pozíciót. [Pontos valuation szabályok](docs/REPLAY_STALE_POLICY.md).
 **NOT STATISTICALLY VALIDATED**: az eredmény kutatási adat, nem profitígéret.
 
 Tárolás: `data/replay.db` és `data/replay-cache/`. Külön replay schema v1;
