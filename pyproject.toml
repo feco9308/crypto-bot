@@ -21,6 +21,7 @@ market-scanner = "crypto_bot.main:main"
 include = ["crypto_bot*"]
 
 [tool.setuptools.package-data]
+"crypto_bot.replay" = ["migrations/*.sql"]
 "crypto_bot.web" = ["templates/*.html", "static/*"]
 "crypto_bot.storage" = ["migrations/*.py", "migrations/*.mako", "migrations/versions/*.py"]
 
