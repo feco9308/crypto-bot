@@ -1,0 +1,25 @@
+[Unit]
+Description=Isolated Historical Replay Worker (NO LIVE TRADING)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=ndvi
+Group=ndvi
+Type=simple
+WorkingDirectory=/home/ndvi/crypto-bot
+Environment=PYTHONUNBUFFERED=1
+Environment=REPLAY_DATA_DIR=/home/ndvi/crypto-bot/data
+ExecStart=/home/ndvi/crypto-bot/.venv/bin/python -m crypto_bot.replay.worker
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=120
+Nice=10
+CPUQuota=75%
+MemoryMax=2G
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

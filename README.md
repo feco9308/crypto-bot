@@ -481,3 +481,39 @@ closed early owned a later peak.
 
 Deployment needs only a web restart. Do not restart scanner/paper engine or
 change the account ON/OFF state for this analysis feature.
+
+
+## Historical Replay Lab
+
+A `/replay` oldalon külön, háttér workerben futó historical replay indítható.
+Lezárt 1h gyertyákból ugyanazt a scanner/heuristic-v1/reference strategy/risk/portfolio
+logikát játssza vissza szimulált idővel; az execution külön 1m OHLC approximation.
+A történelmi Top N kizárólag korábbi 24h quote volume alapján épül.
+
+Single/Compare Run, baseline/TP/BE/trailing/profit-lock exit policy, önálló
+variáns-accountok, pause/resume/cancel, equity/trade audit, BTC/ETH/ALT és
+időszakos bontás, JSON/compact JSON/CSV/ZIP export és replay presetek elérhetők.
+**NOT STATISTICALLY VALIDATED**: az eredmény kutatási adat, nem profitígéret.
+
+Tárolás: `data/replay.db` és `data/replay-cache/`. Külön replay schema v1;
+a production DB migrációja, scanner/paper konfiguráció és aktuális account
+nem változik. Nincs Binance trading API key vagy live adapter.
+
+```bash
+cp deploy/user/crypto-replay-worker.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now crypto-replay-worker
+systemctl --user status crypto-replay-worker
+# Csak a replay worker leállítása:
+systemctl --user stop crypto-replay-worker
+```
+
+A worker és a web szolgáltatás terminál bezárása után is fut, ha a user lingering
+engedélyezett. A replay worker indítása/leállítása nem vezérli a production papert.
+Éves futást kézzel indíts; elsőként 24–48h Top10, majd 30 nap Top20 ajánlott.
+
+[Részletes architektúra, indítás, API, approximation és korlátok](docs/HISTORICAL_REPLAY.md) ·
+[Telepítési és tesztjegyzőkönyv](docs/HISTORICAL_REPLAY_VALIDATION.md).
+
+**NO LIVE TRADING · NO PRODUCTION STRATEGY CHANGE · NO SCORE CHANGE ·
+NO PAPER RESET · NO PRODUCTION DB REPLAY WRITES · STRICT NO-LOOKAHEAD REPLAY.**
