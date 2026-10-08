@@ -499,6 +499,24 @@ def test_web_create_progress_control_presets_and_isolation(web_case):
         assert sql.exec_driver_sql("SELECT count(*) FROM paper_orders").scalar() == 0
 
 
+@pytest.mark.parametrize(
+    "variant",
+    [
+        {"strategy_parameters": {"min_score": ""}},
+        {"risk_parameters": {"initial_paper_balance": "not-a-number"}},
+        {"exit_policy": "fixed_tp", "exit_parameters": {"tp_pct": "bad"}},
+        {"strategy_parameters": {"min_delta": "NaN"}},
+    ],
+)
+def test_invalid_numeric_web_config_returns_400(web_case, variant):
+    client, _, _ = web_case
+    raw = dict(start="2025-01-01", end="2025-01-02", variants=[variant])
+    assert (
+        client.post("/api/replay/runs", json=raw, headers=token(client)).status_code
+        == 400
+    )
+
+
 def test_web_results_trade_chart_exports_and_comparison(web_case):
     client, db, production = web_case
     run_id = db.create(config(variants=[{}, dict(exit_policy="fixed_tp")]))

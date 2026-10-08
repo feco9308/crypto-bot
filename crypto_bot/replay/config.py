@@ -4,6 +4,7 @@ import copy
 import json
 from dataclasses import fields, replace
 from datetime import datetime, timezone
+from decimal import DecimalException
 from pathlib import Path
 
 from crypto_bot.config.settings import Settings
@@ -111,6 +112,13 @@ def settings_for(value):
 
 
 def validate(value):
+    try:
+        return _validate(value)
+    except (DecimalException, OverflowError) as exc:
+        raise ValueError("Invalid numeric replay parameter") from exc
+
+
+def _validate(value):
     if not isinstance(value, dict) or set(value) - {
         "start",
         "end",
