@@ -90,6 +90,7 @@
       minimum_quote_volume: document.querySelector('#replay-min-volume').value,
       spread_approximation_pct: document.querySelector('#replay-spread').value,
       dataset_role: document.querySelector('#replay-role').value,
+      stale_position_policy: document.querySelector('#replay-stale-policy').value,
       fallback_5m: document.querySelector('#replay-fallback').checked,
       conservative: document.querySelector('#replay-conservative').checked,
       candidate_symbols: symbols ? symbols.split(',').map(s => s.trim().toUpperCase()) : null,
@@ -119,6 +120,7 @@
     document.querySelector('#replay-period').value = 'custom';
     document.querySelector('#replay-universe').value = c.universe_size;
     document.querySelector('#replay-role').value = c.dataset_role;
+    document.querySelector('#replay-stale-policy').value = c.stale_position_policy || 'STRICT_FRESH_MARKS';
     document.querySelector('#replay-fallback').checked = c.fallback_5m;
     document.querySelector('#replay-conservative').checked = c.conservative;
     document.querySelector('#replay-min-volume').value = c.minimum_quote_volume;

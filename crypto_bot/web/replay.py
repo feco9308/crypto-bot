@@ -19,6 +19,7 @@ from crypto_bot.replay.config import (
 from crypto_bot.replay.exporter import bundle, csv_export, payload
 from crypto_bot.replay.models import ReplayStore
 from crypto_bot.replay.registry import EXITS, STRATEGIES
+from crypto_bot.replay.stale import WARNING
 
 
 def register_replay(app, production_database):
@@ -269,6 +270,12 @@ def register_replay(app, production_database):
             ):
                 abort(400, "Choose completed variants")
             selected = value["variants"][index]
+            metrics = selected["summary"]["metrics"]
+            affected = metrics.get("stale_data_affected", False) or bool(
+                metrics.get("blocked_entry_categories", {}).get(
+                    "missing_portfolio_marks"
+                )
+            )
             results.append(
                 dict(
                     run_id=run_id,
@@ -277,6 +284,8 @@ def register_replay(app, production_database):
                     period=[value["config"]["start"], value["config"]["end"]],
                     dataset_role=value["config"]["dataset_role"],
                     summary=selected["summary"]["metrics"],
+                    ranking_eligible=not affected,
+                    stale_data_affected=affected,
                 )
             )
         periods = {tuple(r["period"]) for r in results}
@@ -284,6 +293,11 @@ def register_replay(app, production_database):
             variants=results,
             not_statistically_validated=True,
             periods_match=len(periods) == 1,
+            stale_warning=WARNING
+            if any(r["summary"].get("stale_position_count", 0) for r in results)
+            else "Comparison includes stale-data-affected results; metrics are incomplete and excluded from ranking."
+            if any(r["stale_data_affected"] for r in results)
+            else None,
             comparison_warning=None
             if len(periods) == 1
             else "Different periods; returns are not directly comparable",

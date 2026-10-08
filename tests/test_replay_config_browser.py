@@ -41,11 +41,17 @@ def test_config_import_export_copy_download_and_explicit_start(
                 page.goto(f"http://127.0.0.1:{server.server_port}/replay")
                 textarea = page.locator("#replay-config-json")
                 status = page.locator("#replay-config-status")
-                expected = imported()
+                expected = imported() | dict(
+                    stale_position_policy="RESEARCH_QUARANTINE_STALE"
+                )
                 textarea.fill(json.dumps(expected))
                 page.locator("#replay-config-validate").click()
                 playwright.expect(status).to_contain_text("Valid config imported")
                 assert page.locator("#replay-mode").input_value() == "COMPARE RUN"
+                assert (
+                    page.locator("#replay-stale-policy").input_value()
+                    == "RESEARCH_QUARANTINE_STALE"
+                )
                 assert page.locator(".replay-variant").count() == 2
                 assert not page.locator("[data-key=require_watch]").first.is_checked()
                 assert not page.locator("[data-key=require_delta]").first.is_checked()

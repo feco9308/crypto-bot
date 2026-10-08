@@ -5,6 +5,7 @@ import io
 import json
 import zipfile
 
+from crypto_bot.replay.stale import STRICT
 from crypto_bot.web.analysis import csv_value
 
 COLUMNS = (
@@ -62,6 +63,7 @@ def payload(store, run_id, variant=0, compact=False):
             finished_at=run["finished_at"],
             source="BINANCE_PUBLIC_KLINES_APPROXIMATION",
             not_statistically_validated=True,
+            stale_position_policy=run["config"].get("stale_position_policy", STRICT),
         ),
         config=run["config"],
         variant=run["variants"][variant]["config"],
@@ -78,9 +80,9 @@ def payload(store, run_id, variant=0, compact=False):
             if t["status"] == "CLOSED"
         ],
     )
+    out["open_positions"] = [t for t in trades if t["status"] in ("OPEN", "OPEN_STALE")]
     if not compact:
         out["equity_curve"] = curve
-        out["open_positions"] = [t for t in trades if t["status"] == "OPEN"]
     return out
 
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from crypto_bot.config.settings import Settings
 from crypto_bot.replay.clock import ms, utc
 from crypto_bot.replay.registry import EXITS, STRATEGIES
+from crypto_bot.replay.stale import POLICIES, STRICT
 from crypto_bot.replay.symbols import valid_symbol
 from crypto_bot.trading.config import PaperSettings
 from crypto_bot.trading.domain import D
@@ -42,6 +43,7 @@ INPUT_FIELDS = (
     "spread_approximation_pct",
     "candidate_symbols",
     "name",
+    "stale_position_policy",
 )
 VARIANT_FIELDS = (
     "name",
@@ -101,7 +103,12 @@ def input_config(snapshot):
     Stored run snapshots also contain derived engine metadata. That internal
     metadata is deliberately not another user import format.
     """
-    result = {k: copy.deepcopy(snapshot[k]) for k in INPUT_FIELDS}
+    result = {
+        k: copy.deepcopy(
+            snapshot.get(k, STRICT) if k == "stale_position_policy" else snapshot[k]
+        )
+        for k in INPUT_FIELDS
+    }
     result["variants"] = [
         {k: copy.deepcopy(v[k]) for k in VARIANT_FIELDS} for v in snapshot["variants"]
     ]
@@ -253,6 +260,12 @@ def validate(value):
 
 def _validate(value):
     object_fields(value, INPUT_FIELDS, "$")
+    stale_policy = value.get("stale_position_policy", STRICT)
+    if stale_policy not in POLICIES:
+        invalid(
+            "stale_position_policy",
+            "Must be STRICT_FRESH_MARKS or RESEARCH_QUARANTINE_STALE",
+        )
     dates, errors = {}, []
     for key in ("start", "end"):
 
@@ -332,6 +345,7 @@ def _validate(value):
         scanner_snapshot.pop(k, None)
     return dict(
         schema_version=1,
+        stale_position_policy=stale_policy,
         name=str(value.get("name", "Historical Replay"))[:80],
         start=start.isoformat() + "Z",
         end=end.isoformat() + "Z",

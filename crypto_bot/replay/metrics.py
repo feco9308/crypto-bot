@@ -16,7 +16,7 @@ def outcome(trades):
     rs = [t["r_multiple"] for t in closed if t.get("r_multiple") is not None]
     return dict(
         trade_count=len(closed),
-        open_positions=sum(t["status"] == "OPEN" for t in trades),
+        open_positions=sum(t["status"] in ("OPEN", "OPEN_STALE") for t in trades),
         win_rate=len(wins) / len(closed) * 100 if closed else None,
         average_return=mean(returns) if returns else None,
         net_pnl=sum(pnls),

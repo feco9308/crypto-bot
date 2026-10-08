@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 from crypto_bot.config.settings import Settings
 from crypto_bot.indicators.technical import features
+from crypto_bot.replay import stale
 from crypto_bot.replay.clock import ReplayClock, at, ms
 from crypto_bot.replay.config import settings_for
 from crypto_bot.replay.execution import ReplayExecution
@@ -25,8 +26,9 @@ from crypto_bot.trading.domain import ZERO, D, MarketContext, StrategySignal
 
 
 class Variant:
-    def __init__(self, config, start):
+    def __init__(self, config, start, stale_policy=stale.STRICT):
         self.config = config
+        self.stale_policy = stale_policy
         self.settings = settings_for(config)
         self.strategy = STRATEGIES.get(config["strategy"]).factory(self.settings)
         self.risk = RiskManager(self.settings)
@@ -51,6 +53,30 @@ class Variant:
         if signal.action == "BUY":
             self.blocked[legacy_group(reasons)] += 1
             self.blocked_reasons[reason_key(reasons)] += 1
+
+    def fresh_positions(self, symbols, now):
+        for position in self.ledger.portfolio.positions():
+            stale.update(
+                position, position.symbol in symbols, now, self.event, self.stale_policy
+            )
+            stale.state(position)["quarantined"] = (
+                self.stale_policy == stale.QUARANTINE and stale.state(position)["stale"]
+            )
+
+    def mark(self, prices, now):
+        self.ledger.portfolio.mark(prices, at(now))
+        for position in self.ledger.portfolio.positions():
+            if position.symbol in prices:
+                value = stale.state(position)
+                value["last_valid_mark_time"] = at(now).isoformat() + "Z"
+                value["last_valid_mark_price"] = str(position.current_price)
+
+    def decision_view(self):
+        return (
+            stale.risk_view(self.ledger.portfolio)
+            if self.stale_policy == stale.QUARANTINE
+            else self.ledger.portfolio.view()
+        )
 
     def event(self, kind, now, **values):
         self.events.append(
@@ -98,11 +124,25 @@ class Variant:
             for p in pfolio.positions()
             if now in datasets.get(p.symbol, {})
         }
-        pfolio.mark(prices, at(now))
+        self.fresh_positions(prices, now)
+        self.mark(prices, now)
         for signal, row in sorted(
             self.pending, key=lambda item: item[0].action != "SELL"
         ):
             c = datasets.get(signal.symbol, {}).get(now)
+            held = next(
+                (p for p in pfolio.positions() if p.symbol == signal.symbol), None
+            )
+            if held and stale.state(held)["quarantined"]:
+                self.event(
+                    "STALE_ACTION_SKIPPED",
+                    now,
+                    symbol=signal.symbol,
+                    action=signal.action,
+                    position_id=held.id,
+                    reason="QUARANTINED_POSITION; fresh execution data unavailable",
+                )
+                continue
             if c is None:
                 self.event(
                     "NO_FILL",
@@ -117,8 +157,10 @@ class Variant:
                 self.block_entry(signal, self.events[-1]["reason"])
                 continue
             ref = D(c["open"])
-            if signal.action == "BUY" and any(
-                pos.symbol not in prices for pos in pfolio.positions()
+            if (
+                self.stale_policy == stale.STRICT
+                and signal.action == "BUY"
+                and any(pos.symbol not in prices for pos in pfolio.positions())
             ):
                 self.event(
                     "RISK_REJECTED",
@@ -134,7 +176,7 @@ class Variant:
                 )
                 self.block_entry(signal, self.events[-1]["reasons"])
                 continue
-            decision_view = pfolio.view()
+            decision_view = self.decision_view()
             decision = self.risk.evaluate(signal, decision_view, True, entry_price=ref)
             self.event(
                 "STRATEGY_SIGNAL",
@@ -211,7 +253,7 @@ class Variant:
                     btc_regime=row.get("btc_regime", "UNKNOWN"),
                     intrabar_ambiguity=False,
                 )
-                pfolio.mark({position.symbol: ref}, at(now))
+                self.mark({position.symbol: ref}, now)
                 prices[position.symbol] = ref
             else:
                 position.slippage_total += D(audit["slippage"])
@@ -229,6 +271,12 @@ class Variant:
         )
         if position is None or ms(position.opened_at) > candle["time"]:
             return
+        if stale.state(position)["quarantined"]:
+            return
+        # The current completed bar is observable even if its exit closes the
+        # position before the subsequent portfolio mark. This is metadata only.
+        stale.state(position)["last_valid_mark_time"] = at(now).isoformat() + "Z"
+        stale.state(position)["last_valid_mark_price"] = str(D(candle["close"]))
         hit, ambiguous, visited = observe(candle, position, self.exit, conservative)
         position.entry_data["intrabar_ambiguity"] |= ambiguous
         position.mfe_price = max(position.mfe_price, *visited)
@@ -287,44 +335,54 @@ class Variant:
 
     def trade(self, p, now):
         cost = p.notional + p.entry_fee
-        return p.entry_data | dict(
-            position_id=p.id,
-            symbol=p.symbol,
-            status=p.status,
-            asset_group="BTC"
-            if p.symbol == "BTCUSDT"
-            else "ETH"
-            if p.symbol == "ETHUSDT"
-            else "ALT",
-            entry_time=p.opened_at.isoformat() + "Z",
-            exit_time=p.closed_at.isoformat() + "Z" if p.closed_at else None,
-            duration_seconds=((p.closed_at or at(now)) - p.opened_at).total_seconds(),
-            quantity=str(p.quantity),
-            notional=str(p.notional),
-            entry_fill_price=str(p.entry_price),
-            entry_price=str(p.entry_price),
-            exit_price=str(p.exit_price) if p.exit_price else None,
-            original_stop_price=str(p.original_stop),
-            take_profit_price=str(p.take_profit_price) if p.take_profit_price else None,
-            stop_price=str(p.stop_price),
-            exit_reason=p.exit_reason,
-            realized_pnl=str(p.realized_pnl),
-            unrealized_pnl=str(p.unrealized_pnl),
-            return_pct=float(p.realized_pnl / cost * 100)
-            if p.status == "CLOSED"
-            else None,
-            r_multiple=float(p.realized_pnl / D(p.entry_data["risk_amount"]))
-            if p.status == "CLOSED" and D(p.entry_data["risk_amount"]) > 0
-            else None,
-            mfe_pct=max(0, float((p.mfe_price / p.entry_price - 1) * 100)),
-            mae_pct=min(0, float((p.mae_price / p.entry_price - 1) * 100)),
-            fees=str(p.entry_fee + p.exit_fee),
-            slippage=str(p.slippage_total),
-            entry_fee=str(p.entry_fee),
-            exit_fee=str(p.exit_fee),
-            source="BINANCE_PUBLIC_KLINES_APPROXIMATION",
-            strategy_name=self.config["strategy"],
-            exit_policy=self.config["exit_policy"],
+        return (
+            p.entry_data
+            | stale.position_metadata(p, now)
+            | dict(
+                position_id=p.id,
+                symbol=p.symbol,
+                status="OPEN_STALE"
+                if p.status == "OPEN" and stale.state(p)["stale"]
+                else p.status,
+                asset_group="BTC"
+                if p.symbol == "BTCUSDT"
+                else "ETH"
+                if p.symbol == "ETHUSDT"
+                else "ALT",
+                entry_time=p.opened_at.isoformat() + "Z",
+                exit_time=p.closed_at.isoformat() + "Z" if p.closed_at else None,
+                duration_seconds=(
+                    (p.closed_at or at(now)) - p.opened_at
+                ).total_seconds(),
+                quantity=str(p.quantity),
+                notional=str(p.notional),
+                entry_fill_price=str(p.entry_price),
+                entry_price=str(p.entry_price),
+                exit_price=str(p.exit_price) if p.exit_price else None,
+                original_stop_price=str(p.original_stop),
+                take_profit_price=str(p.take_profit_price)
+                if p.take_profit_price
+                else None,
+                stop_price=str(p.stop_price),
+                exit_reason=p.exit_reason,
+                realized_pnl=str(p.realized_pnl),
+                unrealized_pnl=str(p.unrealized_pnl),
+                return_pct=float(p.realized_pnl / cost * 100)
+                if p.status == "CLOSED"
+                else None,
+                r_multiple=float(p.realized_pnl / D(p.entry_data["risk_amount"]))
+                if p.status == "CLOSED" and D(p.entry_data["risk_amount"]) > 0
+                else None,
+                mfe_pct=max(0, float((p.mfe_price / p.entry_price - 1) * 100)),
+                mae_pct=min(0, float((p.mae_price / p.entry_price - 1) * 100)),
+                fees=str(p.entry_fee + p.exit_fee),
+                slippage=str(p.slippage_total),
+                entry_fee=str(p.entry_fee),
+                exit_fee=str(p.exit_fee),
+                source="BINANCE_PUBLIC_KLINES_APPROXIMATION",
+                strategy_name=self.config["strategy"],
+                exit_policy=self.config["exit_policy"],
+            )
         )
 
     def equity(self, now):
@@ -409,7 +467,8 @@ class ReplayEngine:
         universe = HistoricalUniverse(
             histories, scanner, float(config["spread_approximation_pct"])
         )
-        variants = [Variant(v, start) for v in config["variants"]]
+        stale_policy = config.get("stale_position_policy", stale.STRICT)
+        variants = [Variant(v, start, stale_policy) for v in config["variants"]]
         history = defaultdict(list)
         checkpoint = self.store.checkpoint(run_id)
         cursor = start - 24 * 3600000
@@ -547,6 +606,22 @@ class ReplayEngine:
                 clock.advance(minute + 60000)
                 for v in variants:
                     marks = {}
+                    fresh = set()
+                    for p in v.ledger.portfolio.positions():
+                        candle = datasets.get(p.symbol, {}).get(minute)
+                        fallback = datasets.get(p.symbol, {}).get(minute - 240000)
+                        if candle and candle["interval"] == "1m":
+                            fresh.add(p.symbol)
+                        elif fallback and fallback["interval"] == "5m":
+                            fresh.add(p.symbol)
+                        elif config["fallback_5m"]:
+                            # A supported 5m bar is only observable at its close;
+                            # absence of an intervening 1m bar is not a data gap.
+                            t = minute - minute % 300000
+                            pending = datasets.get(p.symbol, {}).get(t)
+                            if pending and pending["interval"] == "5m":
+                                fresh.add(p.symbol)
+                    v.fresh_positions(fresh, clock.now_ms)
                     for p in list(v.ledger.portfolio.positions()):
                         # Only a completed execution candle can affect exits/marks.
                         candle = datasets.get(p.symbol, {}).get(minute)
@@ -562,7 +637,7 @@ class ReplayEngine:
                             )
                             marks[p.symbol] = D(fallback["close"])
                     if marks:
-                        v.ledger.portfolio.mark(marks, at(clock.now_ms))
+                        v.mark(marks, clock.now_ms)
                     view = v.ledger.portfolio.view()
                     sample = (
                         float(view.exposure / view.equity * 100)
@@ -645,11 +720,46 @@ class ReplayEngine:
                 v.exposure_sum / v.exposure_count if v.exposure_count else 0
             )
             result["max_exposure_pct"] = v.exposure_max
+            result.update(stale.summary(trades, stale_policy))
+            risk_view = v.decision_view()
+            result.update(
+                risk_sizing_equity=str(risk_view.equity),
+                risk_exposure=str(risk_view.exposure),
+            )
             # Read the persisted audit too, so pre-observability checkpoints resume
             # without discarding the already-counted rejection reasons.
             result.update(self.store.blocked_entry_details(run_id, i, v.blocked))
             results.append(dict(metrics=result, breakdowns=breakdowns))
         metadata = run["metadata"] | dict(
+            stale_position_policy=stale_policy,
+            stale_position_count=sum(
+                r["metrics"]["stale_position_count"] for r in results
+            ),
+            stale_symbols=sorted(
+                {s for r in results for s in r["metrics"]["stale_symbols"]}
+            ),
+            stale_data_affected=any(
+                r["metrics"]["stale_data_affected"] for r in results
+            ),
+            stale_details_by_variant=[
+                dict(
+                    variant=i,
+                    **{
+                        k: r["metrics"][k]
+                        for k in (
+                            "stale_position_count",
+                            "stale_symbols",
+                            "stale_positions",
+                            "first_stale_time",
+                            "stale_duration_seconds",
+                            "resumed_after_stale",
+                            "capital_locked_by_stale_positions",
+                            "exposure_locked_by_stale_positions",
+                        )
+                    },
+                )
+                for i, r in enumerate(results)
+            ],
             historical_data_revision=self.provider.cache.revision(self.provider.used),
             cache_revision=self.provider.cache.digest(),
             resolved_candidate_symbols=candidates,

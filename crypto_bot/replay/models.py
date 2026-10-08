@@ -11,6 +11,7 @@ from pathlib import Path
 from crypto_bot.monitoring.service import build_info
 from crypto_bot.replay.config import config_hash
 from crypto_bot.replay.rejections import from_audit
+from crypto_bot.replay.stale import STRICT
 
 SCHEMA = (Path(__file__).parent / "migrations" / "0001_initial.sql").read_text()
 
@@ -80,6 +81,7 @@ class ReplayStore:
             config_hash=config_hash(config),
             replay_schema_version=1,
             strict_no_lookahead=True,
+            stale_position_policy=config.get("stale_position_policy", STRICT),
             historical_data_revision={},
             universe_limitations="Archive catalog is not historical exchangeInfo; missing/delisted archives may cause survivorship limitations",
             intrabar_model="CONSERVATIVE_EXIT_PRIORITY"

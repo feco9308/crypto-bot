@@ -1,5 +1,6 @@
 {% extends 'base.html' %}{% block content %}
 <p><a href="{{ url_for('replay_home') }}">← Replay Lab</a> · <a href="{{ url_for('replay_compare_page') }}">Compare</a></p>
+<p id="replay-stale-warning" class="warning" role="alert" hidden></p>
 <h1>{{ run.config.name }} · {{ run.id[:12] }}</h1>
 <div id="replay-run" data-run="{{ run.id }}" data-variant="{{ variant }}" data-url="{{ url_for('replay_run_api',run_id=run.id) }}" data-csrf="{{ csrf }}">
 <section><h2>Run Progress</h2><p id="replay-progress" role="status">{{ run.status }}</p><progress id="replay-progress-bar" value="{{ run.progress.get('progress_pct',0) }}" max="100"></progress><dl class="audit-metrics" id="replay-progress-metrics"></dl><p id="replay-run-error">{{ run.error or '' }}</p><button data-replay-action="pause">PAUSE</button> <button data-replay-action="resume">RESUME</button> <button data-replay-action="cancel">CANCEL</button> <button data-replay-action="clone">Clone exact config as new run</button></section>
