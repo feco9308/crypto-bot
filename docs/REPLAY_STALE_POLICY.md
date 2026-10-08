@@ -111,5 +111,5 @@ Only web and the isolated replay worker require restart when idle. Scanner and
 production paper must retain their running processes. No database migration,
 production account reset, historical record correction or API key is required.
 The dedicated replay database/cache remain separate from the production database.
-The 2024 rerun and its four compact exports are documented in the companion
-validation report after completion.
+The completed 2024 rerun, four compact exports and comparison limitations are
+documented in [the validation report](REPLAY_STALE_VALIDATION.md).

@@ -134,10 +134,10 @@ def test_no_symbol_action_or_retroactive_fill_and_resume_on_fresh_current_data()
     assert stale.state(front)["stale_duration_seconds"] == 3600
     assert front.current_price == D(110)
     assert len(v.execution.fills) == 1  # Unquarantine is a mark, not a fill.
-    # Current completed bar may trigger the original stop at its current gap-open.
+    # The current completed bar can trigger the original stop; no absent bar is replayed.
     v.bar(
         "FRONTUSDT",
-        candle(resumed, open=95, high=96, low=94, close=95),
+        candle(resumed, open=110, high=111, low=97, close=110),
         resumed + 60000,
         True,
     )
