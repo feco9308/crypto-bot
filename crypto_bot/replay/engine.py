@@ -16,6 +16,7 @@ from crypto_bot.replay.exits import levels, observe, policy
 from crypto_bot.replay.metrics import summary
 from crypto_bot.replay.portfolio import MemoryLedger
 from crypto_bot.replay.registry import SCORES, STRATEGIES
+from crypto_bot.replay.rejections import legacy_group, reason_key
 from crypto_bot.replay.universe import CandleHistory, HistoricalUniverse
 from crypto_bot.risk.manager import RiskManager
 from crypto_bot.scanner.momentum import score_momentum
@@ -43,7 +44,13 @@ class Variant:
             for k in ("daily_loss", "drawdown", "exposure", "max_positions", "other")
         }
         self.total_slippage = ZERO
+        self.blocked_reasons = defaultdict(int)
         self.pending = []
+
+    def block_entry(self, signal, reasons):
+        if signal.action == "BUY":
+            self.blocked[legacy_group(reasons)] += 1
+            self.blocked_reasons[reason_key(reasons)] += 1
 
     def event(self, kind, now, **values):
         self.events.append(
@@ -101,12 +108,13 @@ class Variant:
                     "NO_FILL",
                     now,
                     symbol=signal.symbol,
+                    action=signal.action,
                     signal_time=signal.timestamp.isoformat() + "Z",
                     reason="MISSING_1M_EXECUTION_CANDLE; fallback disabled"
                     if not fallback
                     else "MISSING_EXECUTION_CANDLE",
                 )
-                self.blocked["other"] += signal.action == "BUY"
+                self.block_entry(signal, self.events[-1]["reason"])
                 continue
             ref = D(c["open"])
             if signal.action == "BUY" and any(
@@ -116,9 +124,15 @@ class Variant:
                     "RISK_REJECTED",
                     now,
                     symbol=signal.symbol,
+                    action=signal.action,
                     reasons=["Fresh portfolio marks unavailable"],
+                    missing_mark_symbols=sorted(
+                        pos.symbol
+                        for pos in pfolio.positions()
+                        if pos.symbol not in prices
+                    ),
                 )
-                self.blocked["other"] += 1
+                self.block_entry(signal, self.events[-1]["reasons"])
                 continue
             decision_view = pfolio.view()
             decision = self.risk.evaluate(signal, decision_view, True, entry_price=ref)
@@ -134,23 +148,12 @@ class Variant:
                 "RISK_DECISION",
                 now,
                 symbol=signal.symbol,
+                action=signal.action,
                 decision=asdict(decision),
                 portfolio=asdict(decision_view),
             )
             if not decision.approved:
-                reason = " ".join(decision.reasons)
-                group = (
-                    "daily_loss"
-                    if "daily loss" in reason
-                    else "drawdown"
-                    if "drawdown" in reason
-                    else "exposure"
-                    if "exposure" in reason
-                    else "max_positions"
-                    if "max open" in reason
-                    else "other"
-                )
-                self.blocked[group] += signal.action == "BUY"
+                self.block_entry(signal, decision.reasons)
                 continue
             position, audit = self.execution.fill(
                 signal,
@@ -345,6 +348,7 @@ class Variant:
             ledger=self.ledger.checkpoint(),
             next_order=self.execution.next_order,
             blocked=self.blocked,
+            blocked_reasons=dict(self.blocked_reasons),
             total_slippage=str(self.total_slippage),
             exposure_count=self.exposure_count,
             exposure_sum=self.exposure_sum,
@@ -429,6 +433,13 @@ class ReplayEngine:
                 v.ledger.restore(state["ledger"])
                 v.execution.next_order = state["next_order"]
                 v.blocked = state["blocked"]
+                v.blocked_reasons.update(
+                    state["blocked_reasons"]
+                    if "blocked_reasons" in state
+                    else self.store.blocked_entry_details(run_id, i, v.blocked)[
+                        "blocked_entry_reasons"
+                    ]
+                )
                 v.total_slippage = D(state["total_slippage"])
                 _, v.curve = self.store.data(run_id, i)
                 v.exposure_count = state["exposure_count"]
@@ -634,6 +645,9 @@ class ReplayEngine:
                 v.exposure_sum / v.exposure_count if v.exposure_count else 0
             )
             result["max_exposure_pct"] = v.exposure_max
+            # Read the persisted audit too, so pre-observability checkpoints resume
+            # without discarding the already-counted rejection reasons.
+            result.update(self.store.blocked_entry_details(run_id, i, v.blocked))
             results.append(dict(metrics=result, breakdowns=breakdowns))
         metadata = run["metadata"] | dict(
             historical_data_revision=self.provider.cache.revision(self.provider.used),

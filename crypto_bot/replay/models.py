@@ -10,6 +10,7 @@ from pathlib import Path
 
 from crypto_bot.monitoring.service import build_info
 from crypto_bot.replay.config import config_hash
+from crypto_bot.replay.rejections import from_audit
 
 SCHEMA = (Path(__file__).parent / "migrations" / "0001_initial.sql").read_text()
 
@@ -123,7 +124,44 @@ class ReplayStore:
                     (run_id,),
                 )
             ]
+            for variant in out["variants"]:
+                summary = variant["summary"]
+                if summary and "blocked_entry_reasons" not in summary["metrics"]:
+                    metrics = summary["metrics"]
+                    metrics.update(
+                        self.blocked_entry_details(
+                            run_id,
+                            variant["number"],
+                            metrics.get("blocked_entries", {}),
+                        )
+                    )
             return out
+
+    def blocked_entry_details(self, run_id, variant, blocked):
+        # Extract only reporting fields: rejected decisions can contain large
+        # portfolio snapshots, which need not be loaded into Python to count them.
+        with self.connection() as db:
+            rows = db.execute(
+                """SELECT json_extract(data,'$.event') event,
+                          json_extract(data,'$.symbol') symbol,
+                          json_extract(data,'$.action') action,
+                          COALESCE(json_extract(data,'$.reasons'),
+                                   json_extract(data,'$.decision.reasons')) reasons,
+                          json_extract(data,'$.reason') reason
+                   FROM replay_audit_events WHERE run_id=? AND variant=? AND
+                   (json_extract(data,'$.event') IN
+                        ('ENTRY_FILL','EXIT_FILL','NO_FILL','RISK_REJECTED') OR
+                    (json_extract(data,'$.event')='RISK_DECISION' AND
+                     json_extract(data,'$.decision.approved')=0)) ORDER BY id""",
+                (run_id, variant),
+            )
+            events = []
+            for row in rows:
+                event = dict(row)
+                if event["reasons"]:
+                    event["reasons"] = json.loads(event["reasons"])
+                events.append(event)
+        return from_audit(events, blocked)
 
     def merge_progress(self, run_id, values):
         with self.connection() as db:
