@@ -493,6 +493,11 @@ A történelmi Top N kizárólag korábbi 24h quote volume alapján épül.
 Single/Compare Run, baseline/TP/BE/trailing/profit-lock exit policy, önálló
 variáns-accountok, pause/resume/cancel, equity/trade audit, BTC/ETH/ALT és
 időszakos bontás, JSON/compact JSON/CSV/ZIP export és replay presetek elérhetők.
+Replay Config JSON import/export, másolás és letöltés is elérhető. A **VALIDATE**
+ugyanazzal a backend sémával ellenőriz, mint a normál run API, és csak kitölti
+az űrlapot és a variánsokat; futás kizárólag **START REPLAY** után indul.
+Az exportált konfiguráció változtatás nélkül elküldhető a `POST /api/replay/runs`
+végpontra. A konfigurációexport külön funkció az eredmények exportjától.
 **NOT STATISTICALLY VALIDATED**: az eredmény kutatási adat, nem profitígéret.
 
 Tárolás: `data/replay.db` és `data/replay-cache/`. Külön replay schema v1;

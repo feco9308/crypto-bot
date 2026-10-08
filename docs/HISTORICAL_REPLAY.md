@@ -249,6 +249,68 @@ stop and TP markers, plus linked strategy/risk/fill/exit-trigger audit. Chart GE
 never download or feed anything back into strategy. If candles are not cached,
 the chart shows unavailable data rather than generating substitutes.
 
+## Replay Config JSON import/export
+
+On `/replay`, paste a request configuration into **Import Replay Config JSON**
+and click **VALIDATE**. Validation uses the same `validate()` backend function
+as normal run creation and presets. A valid response populates all form fields
+and variants, selecting Compare mode for multiple variants. It never queues a
+run or saves a preset: explicitly click **START REPLAY** afterward. Invalid
+imports leave the form unchanged and show field paths and messages, including
+variant indexes, unknown strategy/exit IDs and malformed numbers/dates.
+
+**EXPORT CONFIG JSON** displays the current validated form configuration;
+**COPY CONFIG JSON** copies it (with a selection/copy fallback), and
+**DOWNLOAD CONFIG JSON** saves `replay-config.json`. Each operation validates
+the current form without starting a run. Exports include effective defaults,
+UTC period, dataset role, ranked universe and optional candidates, execution
+settings, and every active variant's strategy/exit IDs, parameters and risk
+settings. Decimal parameters are represented as strings to retain precision.
+
+This is the existing `POST /api/replay/runs` request format, not a second schema.
+For example, paste this request and validate it to expand all defaults:
+
+```json
+{
+  "name": "Baseline versus trailing",
+  "start": "2025-01-01T00:00:00Z",
+  "end": "2025-01-03T00:00:00Z",
+  "dataset_role": "EXPLORATION",
+  "universe_size": 20,
+  "candidate_symbols": ["BTCUSDT", "ETHUSDT"],
+  "minimum_quote_volume": "5000000",
+  "spread_approximation_pct": "0.02",
+  "fallback_5m": false,
+  "conservative": true,
+  "variants": [
+    {
+      "name": "Baseline",
+      "strategy": "watchlist_reference_v1",
+      "strategy_parameters": {"min_score": "70"},
+      "exit_policy": "baseline_v1",
+      "exit_parameters": {},
+      "risk_parameters": {"initial_paper_balance": "1000"}
+    },
+    {
+      "name": "Trailing",
+      "strategy": "watchlist_reference_v1",
+      "strategy_parameters": {"min_score": "70"},
+      "exit_policy": "trailing_pct",
+      "exit_parameters": {"activation_pct": "1.5", "distance_pct": "0.5"},
+      "risk_parameters": {"initial_paper_balance": "1000"}
+    }
+  ]
+}
+```
+
+`POST /api/replay/config/validate` requires the existing session CSRF token and
+returns `{"valid":true,"config":{...}}` with the normalized request. Send that
+same `config` to `/api/replay/runs` to explicitly queue a run. Both endpoints
+return HTTP 400 with `{"valid":false,"errors":[{"field":"variants[0].strategy",
+"message":"..."}]}` for configuration errors. Malformed JSON uses field `$`.
+Stored result snapshots contain derived engine metadata; use the Config JSON
+tools to export a request instead of pasting an analysis/results export.
+
 ## Routes and APIs
 
 Pages: `/replay`, `/replay/runs/<run_id>`,
@@ -261,7 +323,7 @@ GET: `/api/replay/runs`, `/api/replay/runs/<run_id>`,
 `/api/replay/compare?selection=<run_id>:0&selection=<run_id>:1`,
 `/api/replay/presets`.
 
-POST (existing session CSRF required): `/api/replay/runs`,
+POST (existing session CSRF required): `/api/replay/config/validate`, `/api/replay/runs`,
 `/api/replay/runs/<run_id>/<pause|resume|cancel|clone>`, `/api/replay/presets`.
 These actions affect replay resources only. Trade tables are paginated; exports
 contain all closed trades. Limits: 64 KiB request config, 10 variants, three-year
