@@ -1,0 +1,5 @@
+'use strict';
+(() => {
+ const form=document.querySelector('#replay-compare');if(!form)return;
+ form.addEventListener('submit',async e=>{e.preventDefault();const status=document.querySelector('#replay-compare-status');try{const p=new URLSearchParams();new FormData(form).getAll('selection').forEach(s=>p.append('selection',s));const r=await fetch('/api/replay/compare?'+p);if(!r.ok)throw Error('Choose 2–10 distinct completed variants');const data=await r.json();status.textContent=(data.comparison_warning||'Same period')+' · NOT STATISTICALLY VALIDATED';const body=document.querySelector('#replay-comparison');body.replaceChildren();data.variants.forEach(v=>{const m=v.summary,row=document.createElement('tr');[v.config.strategy,v.config.exit_policy,v.period.join(' → '),m.trade_count,m.net_pnl,m.return_pct,m.max_drawdown,m.win_rate,m.profit_factor,m.expectancy,m.avg_r,m.fees,m.ambiguous_trade_count,m.sample_label].forEach(value=>{const td=document.createElement('td');td.textContent=value===null?'—':typeof value==='number'?value.toFixed(4):value;row.append(td);});body.append(row);});}catch(error){status.textContent=error.message;}});
+})();

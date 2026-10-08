@@ -1,0 +1,8 @@
+{% extends 'base.html' %}{% block content %}
+<p><a href="{{ url_for('replay_home') }}">← Replay Lab</a></p><h1>Replay Comparison</h1>
+<p>Choose 2–10 completed variants. NOT STATISTICALLY VALIDATED. Different periods and universes need separate interpretation.</p>
+<section><form id="replay-compare"><fieldset><legend>Completed variants</legend>
+{% for c in choices %}<label class="replay-choice"><input type="checkbox" name="selection" value="{{ c.id }}:{{ c.number }}"> {{ c.name }} · {{ c.variant_name }} · {{ c.exit_policy }} · {{ c.start }} → {{ c.end }} <a href="{{ url_for('replay_run_page',run_id=c.id,variant=c.number) }}">Details</a></label>{% else %}<p>Complete two variants to compare results here.</p>{% endfor %}
+</fieldset><button>Compare</button></form><p id="replay-compare-status" role="status"></p>
+<div class="table-scroll"><table><thead><tr>{% for k in ['Strategy','Exit','Period','Trades','Net PnL','Return %','Max DD %','Win rate','PF','Expectancy','Avg R','Fees','Ambiguous','Sample'] %}<th>{{ k }}</th>{% endfor %}</tr></thead><tbody id="replay-comparison"></tbody></table></div></section>
+<script defer src="{{ url_for('static',filename='replay_compare.js') }}"></script>{% endblock %}

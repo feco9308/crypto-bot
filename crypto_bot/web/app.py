@@ -158,4 +158,7 @@ def create_app(settings=None, database=None):
     from crypto_bot.web.analysis import register_analysis
 
     register_analysis(app, database, settings)
+    from crypto_bot.web.replay import register_replay
+
+    register_replay(app, database)
     return app
