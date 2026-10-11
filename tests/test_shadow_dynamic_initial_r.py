@@ -275,3 +275,91 @@ def test_decomposition_separates_denominator_scaling_from_cash_outcome():
     assert result["denominator_scaling_effect_r"] == -0.5
     assert result["delta_total_r"] == -0.5
     assert result["decomposition_residual"] == 0
+
+
+def test_control_fixed_risk_roundtrip_does_not_count_as_sizing_change():
+    e, r, f, s = fixture()
+    d = derive(e, r, f, s)
+    result = sizing_audit(e, d, f, snapshot(), s)
+    assert result["CONTROL"]["quantity_ratio"] == 1
+    assert result["CONTROL"]["quantity_ratio_vs_canonical"] <= 1
+    assert result["C"]["quantity_ratio"] == 1
+
+
+def test_private_archive_completion_get_only_no_shared_cache_writes(tmp_path):
+    import hashlib
+    import io
+    import sqlite3
+    import zipfile
+
+    from research.shadow_dynamic_initial_r import ResearchMinutes
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    db = sqlite3.connect(cache / "candles.sqlite")
+    db.execute("create table objects(key text primary key,status text,sha256 text)")
+    db.commit()
+    db.close()
+    before = (cache / "candles.sqlite").read_bytes()
+    zipped = io.BytesIO()
+    with zipfile.ZipFile(zipped, "w") as archive:
+        archive.writestr(
+            "bars.csv", "1704067200000,100,102,99,101,1,1704067259999,100,1,0,0,0\n"
+        )
+    blob = zipped.getvalue()
+    sha = hashlib.sha256(blob).hexdigest()
+
+    class Response:
+        status_code = 200
+        content = blob
+        text = sha + "  bars.zip"
+
+        def raise_for_status(self):
+            pass
+
+    class Client:
+        def __init__(self):
+            self.urls = []
+
+        def get(self, url):
+            self.urls.append(url)
+            assert url.startswith(
+                "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1m/"
+            )
+            return Response()
+
+    client = Client()
+    p = ResearchMinutes(cache, {}, tmp_path / "private", client)
+    candle = p.candle("SOLUSDT", 1704067200000)
+    assert candle["high"] == 102
+    assert len(client.urls) == 2 and client.urls[-1].endswith(".CHECKSUM")
+    p.db.close()
+    assert (cache / "candles.sqlite").read_bytes() == before
+    assert not (cache / "objects").exists()
+    assert (
+        next(iter(p.download_audit.values()))["first_observed_lookup"] == 1704067200000
+    )
+    assert next(iter(p.download_audit.values()))["official_checksum_verified"]
+
+
+def test_pinned_missing_archive_never_overridden_by_private_download(tmp_path):
+    import sqlite3
+
+    from research.shadow_dynamic_initial_r import ResearchMinutes
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    key = "data/spot/monthly/klines/SOLUSDT/1m/SOLUSDT-1m-2024-01.zip"
+    db = sqlite3.connect(cache / "candles.sqlite")
+    db.execute("create table objects(key text primary key,status text,sha256 text)")
+    db.execute("insert into objects values(?,?,?)", (key, "MISSING", None))
+    db.commit()
+    db.close()
+
+    class Never:
+        def get(self, url):
+            raise AssertionError("Pinned revisions must stay immutable")
+
+    p = ResearchMinutes(cache, {key: None}, tmp_path / "private", Never())
+    assert p.candle("SOLUSDT", 1704067200000) is None
+    p.db.close()

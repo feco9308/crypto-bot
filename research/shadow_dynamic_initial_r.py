@@ -3,19 +3,26 @@
 import argparse
 import copy
 import hashlib
+import io
 import json
 import math
+import shutil
 import time
+import zipfile
 from collections import Counter, defaultdict
 from dataclasses import replace
+from functools import lru_cache
 from pathlib import Path
 
+from crypto_bot.data.base import Candle
 from crypto_bot.replay.clock import at, ms
 from crypto_bot.replay.config import settings_for
+from crypto_bot.replay.historical_data import ARCHIVE, HistoricalData
 from crypto_bot.replay.shadow_adaptive import NAME
 from crypto_bot.replay.shadow_engine import MINUTE, ShadowPosition
 from crypto_bot.replay.shadow_store import canonical_entries
 from crypto_bot.replay.stale import ReplayRiskView
+from crypto_bot.replay.universe import CandleHistory
 from crypto_bot.risk.manager import RiskManager
 from crypto_bot.trading.domain import D, PositionView, StrategySignal, q
 from research.entry_market_context import ANCHOR, anchor, database_fingerprint, digest
@@ -37,6 +44,81 @@ DEFINITIONS = {
     "C": "max(2 * ATR14, 1.5 * ATR72)",
     "D": "max(2 * ATR14, pullback_P75_72h * strategy_reference_price / 100)",
 }
+
+
+class ResearchMinutes(PinnedMinutes):
+    """Fill only absent, unpinned cache objects in a PRIVATE research directory.
+
+    Never changes the anchor's pinned COMPLETE/MISSING revisions or shared cache.
+    Downloads happen on observed simulated lookup, not predicted coverage ends.
+    """
+
+    def __init__(self, root, pins, directory, client=None):
+        super().__init__(root, pins)
+        self.directory = directory
+        directory.mkdir(parents=True, exist_ok=True)
+        self.client = client or HistoricalData(None)
+        self.download_audit = {}
+        self.lookup_time = None
+
+    def candle(self, symbol, timestamp):
+        self.lookup_time = timestamp
+        return super().candle(symbol, timestamp)
+
+    @lru_cache(maxsize=64)
+    def month(self, symbol, stamp):
+        key = f"data/spot/monthly/klines/{symbol}/1m/{symbol}-1m-{stamp}.zip"
+        row = self.db.execute(
+            "SELECT status FROM objects WHERE key=?", (key,)
+        ).fetchone()
+        if key in self.pins or row is not None:
+            return super().month(symbol, stamp)
+        manifest = self.directory / (symbol + "-" + stamp + ".json")
+        if manifest.exists():
+            info = json.loads(manifest.read_text())
+            if info["key"] != key:
+                raise ValueError("Private archive identity mismatch")
+        else:
+            response = self.client.get(ARCHIVE + key)
+            if response.status_code == 404:
+                info = {
+                    "key": key,
+                    "sha256": None,
+                    "status": "MISSING",
+                    "first_observed_lookup": self.lookup_time,
+                }
+            else:
+                response.raise_for_status()
+                blob = response.content
+                sha = hashlib.sha256(blob).hexdigest()
+                checksum = self.client.get(ARCHIVE + key + ".CHECKSUM")
+                checksum.raise_for_status()
+                if checksum.text.split()[0] != sha:
+                    raise ValueError("Official archive checksum mismatch")
+                target = self.directory / (sha + ".zip")
+                temp = target.with_suffix(".zip.tmp")
+                temp.write_bytes(blob)
+                temp.replace(target)
+                info = {
+                    "key": key,
+                    "sha256": sha,
+                    "status": "COMPLETE",
+                    "first_observed_lookup": self.lookup_time,
+                    "official_checksum_verified": True,
+                }
+            write(manifest, info)
+        self.download_audit[key] = info
+        self.used[key] = self.supplemental[key] = info["sha256"]
+        if info["sha256"] is None:
+            return CandleHistory([])
+        blob = (self.directory / (info["sha256"] + ".zip")).read_bytes()
+        if hashlib.sha256(blob).hexdigest() != info["sha256"]:
+            raise ValueError("Private archive bytes changed")
+        with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+            rows = HistoricalData.parse(
+                archive.read(archive.namelist()[0]).decode("utf-8-sig")
+            )
+        return CandleHistory((Candle(r[0], r[1], *r[2:7]), r[7]) for r in rows)
 
 
 def loss_per_unit(quote, stop, settings):
@@ -190,6 +272,12 @@ def sizing_audit(entry, derived, fill, snapshot, settings):
             "risk_manager_quantity": str(decision.quantity),
             "risk_manager_risk_amount": str(decision.risk_amount),
         }
+    control_quantity = D(result["CONTROL"]["requested_quantity"])
+    for values in result.values():
+        values["quantity_ratio_vs_canonical"] = values["quantity_ratio"]
+        values["quantity_ratio"] = float(
+            D(values["requested_quantity"]) / control_quantity
+        )
     return result
 
 
@@ -523,6 +611,16 @@ def summarize(rows, audits, records):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--root", type=Path, required=True)
+    p.add_argument(
+        "--repair-uncached",
+        action="store_true",
+        help="Complete only incomplete shadow outcomes with private public archive sources",
+    )
+    p.add_argument(
+        "--summarize-existing",
+        action="store_true",
+        help="Require all existing checkpoints; never create a new entry simulation",
+    )
     args = p.parse_args()
     root = args.root
     output = root / "artifacts/shadow-dynamic-initial-r-2024"
@@ -605,9 +703,41 @@ def main():
         ),
         flush=True,
     )
-    provider = PinnedMinutes(
-        root / "data/replay-cache", metadata["historical_data_revision"]
+    provider = (
+        ResearchMinutes(
+            root / "data/replay-cache",
+            metadata["historical_data_revision"],
+            output / "supplemental-archives",
+        )
+        if args.repair_uncached
+        else PinnedMinutes(
+            root / "data/replay-cache", metadata["historical_data_revision"]
+        )
     )
+    if args.repair_uncached:
+        preserved = output / "initial-cache-pass"
+        preserved.mkdir(exist_ok=True)
+        for name in (
+            "2024-B-shadow-dynamic-initial-r.compact.json",
+            "2024-B-shadow-dynamic-initial-r.detailed.json",
+            "validation.json",
+        ):
+            if (output / name).exists() and not (preserved / name).exists():
+                shutil.copyfile(output / name, preserved / name)
+    repaired = []
+
+    def merge_sources(target, updates, initial_cache_pass=False):
+        for key, sha in updates.items():
+            if (
+                initial_cache_pass
+                and args.repair_uncached
+                and sha is None
+                and key not in metadata["historical_data_revision"]
+            ):
+                continue
+            if sha is not None or target.get(key) is None:
+                target[key] = sha
+
     for saved in (control_saved, opt_saved):
         provider.used.update(saved["source_revisions"])
         provider.supplemental.update(saved["supplemental_sources"])
@@ -623,9 +753,52 @@ def main():
             if saved["identity"] != expected:
                 raise ValueError("Checkpoint identity changed")
             outcomes = saved["outcomes"]
-            provider.used.update(saved["source_revisions"])
-            provider.supplemental.update(saved["supplemental_sources"])
+            merge_sources(provider.used, saved["source_revisions"], True)
+            merge_sources(provider.supplemental, saved["supplemental_sources"], True)
+            affected = sorted(
+                {
+                    r["policy_id"]
+                    for mode in outcomes.values()
+                    for r in mode
+                    if not r["comparison_eligible"]
+                }
+            )
+            replacement = output / f"coverage-completion-checkpoints/{pid}.json"
+            if args.repair_uncached and affected:
+                if replacement.exists():
+                    completed = json.loads(replacement.read_text())
+                    if completed["identity"] != expected:
+                        raise ValueError("Coverage completion identity changed")
+                    updates = completed["outcomes"]
+                    merge_sources(provider.used, completed["source_revisions"])
+                    merge_sources(
+                        provider.supplemental, completed["supplemental_sources"]
+                    )
+                else:
+                    updates = run_entry(
+                        derived[pid], affected, settings, config, provider
+                    )
+                    replacement.parent.mkdir(exist_ok=True)
+                    write(
+                        replacement,
+                        {
+                            "identity": expected,
+                            "outcomes": updates,
+                            "source_revisions": provider.used,
+                            "supplemental_sources": provider.supplemental,
+                        },
+                    )
+                outcomes = {
+                    mode: [r for r in old if r["policy_id"] not in affected]
+                    + updates[mode]
+                    for mode, old in outcomes.items()
+                }
+                repaired.append({"position_id": pid, "policies": affected})
         else:
+            if args.summarize_existing:
+                raise ValueError(
+                    "Missing checkpoint; new simulation forbidden in summarize-existing mode"
+                )
             outcomes = run_entry(derived[pid], LABELS[1:], settings, config, provider)
             write(
                 path,
@@ -655,12 +828,28 @@ def main():
         raise ValueError("Canonical entry mutated")
     conservative = summarize(primary, audits, records)
     optimistic_report = summarize(optimistic, audits, records)
+    private_audit = {}
+    if args.repair_uncached:
+        for manifest in (output / "supplemental-archives").glob("*.json"):
+            info = json.loads(manifest.read_text())
+            if info["sha256"]:
+                blob = manifest.parent / (info["sha256"] + ".zip")
+                if hashlib.sha256(blob.read_bytes()).hexdigest() != info["sha256"]:
+                    raise ValueError("Private source integrity changed")
+            private_audit[info["key"]] = info
     compact = {
         "schema_version": 1,
         "dataset_role": "2024 EXPLORATION",
         **expected,
         "control_parity": proof,
         "canonical_entry_count": 1506,
+        "coverage_completion": {
+            "affected_entries": repaired,
+            "private_public_archive_sources": private_audit,
+            "initial_cache_pass_preserved": str(output / "initial-cache-pass")
+            if args.repair_uncached
+            else None,
+        },
         "methodology": {
             "scope": "MATCHED ENTRY SHADOW; NOT PORTFOLIO REPLAY",
             "stop_base": "Canonical strategy reference price, same unquantized Decimal arithmetic; ATR/pullback imported from SHA-verified completed diagnostic",
@@ -668,6 +857,8 @@ def main():
             "trailing": "Unchanged AdaptivePeakLock, original ATR14, own initial R fixed at entry; .75R BE,1R .75ATR trail,2R .5ATR trail",
             "execution": "Unchanged ShadowPosition minute OHLC, fee/slippage and conservative/optimistic selection; all eight candidate/mode states share each read-only candle",
             "sizing": "Hypothetical only: original actual risk amount, original snapshot including stale exposure reservation; unchanged RiskManager.evaluate with risk_pct=canonical_risk/equity*100. No resizing or rejected-entry removal in shadow.",
+            "sizing_ratios": "Primary quantity ratio uses hypothetical CONTROL under the same quantized monetary risk budget; raw canonical ratio also retained, so risk_amount round-trip rounding cannot count as candidate sizing change.",
+            "source_completion": "Only absent, unpinned cache objects may be downloaded via GET-only public Binance archives, official checksum checked, into a private research directory. Shared DB/cache and original pinned COMPLETE/MISSING revisions stay unchanged. Existing complete checkpoints are reused; only affected incomplete policies receive coverage completion.",
             "no_lookahead": "Imported pre-entry closed-hour feature proof, sequential post-entry closed minutes, no final-price exits or future-coverage triggers",
             "flat": "Existing abs(return_pct)<=1e-6 tolerance; positive-R damage also includes microscopic BE positives",
             "scale_decomposition": "deltaR=(candidatePnL-controlPnL)/controlRisk + candidatePnL*(1/candidateRisk-1/controlRisk)",
@@ -730,6 +921,7 @@ def main():
             "production_code_touched": False,
             "portfolio_replays_started": 0,
             "service_restarts": 0,
+            "coverage_completion": compact["coverage_completion"],
             "minute_archive_revisions": provider.used,
             "supplemental_cached_sources": provider.supplemental,
             "elapsed_seconds": time.monotonic() - start,
