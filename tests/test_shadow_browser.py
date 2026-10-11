@@ -47,7 +47,15 @@ def test_shadow_browser_validation_explicit_start_and_matched_results(request, w
                 page.wait_for_url("**/replay/shadow-exit/*")
                 ident = page.url.rsplit("/", 1)[-1]
                 result = ShadowEngine(Stops()).run(store.get(ident, True))
-                store.update(ident, status="COMPLETED", result=result)
+                store.update(
+                    ident,
+                    status="COMPLETED",
+                    result=result,
+                    progress={
+                        "canonical_entries_processed": 433,
+                        "canonical_entry_count": 433,
+                    },
+                )
                 page.reload()
                 playwright.expect(page.locator("#shadow-summary tr")).to_have_count(5)
                 playwright.expect(page.locator("#shadow-pairwise tr")).to_have_count(10)

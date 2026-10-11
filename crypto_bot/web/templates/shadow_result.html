@@ -1,6 +1,7 @@
 {% extends 'base.html' %}{% block content %}
 <p><a href="{{ url_for('shadow_home') }}">← Shadow Exit Research</a></p><h1>Matched-entry research results</h1>
 <p class="warning">MATCHED-ENTRY EXIT COMPARISON — NOT PORTFOLIO PERFORMANCE. NOT STATISTICALLY VALIDATED.</p>
+<link rel="stylesheet" href="{{ url_for('static',filename='shadow_result.css') }}">
 <section id="shadow-result" data-id="{{ ident }}"><p id="shadow-job-status" role="status"></p><p id="shadow-anchor-summary"></p>
 <p>Returns and R use the same canonical size/risk for each entry. Pairwise comparisons exclude open, stale and incomplete outcomes. Common-entry metrics use the intersection of complete outcomes across all policies; per-policy closed samples are descriptive only. No automatic “best” policy.</p>
 <p><a href="/api/replay/shadow/runs/{{ ident }}/export.compact.json">Compact JSON</a> · <a href="/api/replay/shadow/runs/{{ ident }}/export.json">Detailed JSON</a></p>

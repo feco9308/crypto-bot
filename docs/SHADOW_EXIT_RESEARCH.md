@@ -160,3 +160,6 @@ behavior. Matched outcomes do not estimate returns from a different entry stream
 or a separately funded exit portfolio. OHLC ambiguity remains an approximation.
 The 2024 EXPLORATION dataset is not statistical validation, optimization or a
 production promotion decision.
+
+The completed annual run and verification are recorded in
+[SHADOW_EXIT_VALIDATION.md](SHADOW_EXIT_VALIDATION.md).
