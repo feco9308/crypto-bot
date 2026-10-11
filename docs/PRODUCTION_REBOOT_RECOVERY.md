@@ -190,3 +190,9 @@ worker READY és friss heartbeat. `.env` SHA-256 változatlan. A bizonyíték:
 `artifacts/reboot-recovery-2026-10-11/reboot-proof.json`.
 Alkalmazáskód, score, strategy, risk és ledger logika ehhez nem változott;
 csak a négy unitminta és az üzemeltetési leírás módosult.
+
+A következő normál scanner ciklus (1378) **11:10:10 UTC-kor** sikeresen
+befejeződött, 51 instrumentum pontozva, `errors={}`. A paper friss sikeres
+ciklusa 11:10:23 UTC, RUNNING. Végső health: HTTP 200, 0 DEGRADED, 0 ERROR,
+0 STALE, scanner/web/paper RUNNING, replay READY. Mind a négy eredeti reboot
+PID változatlan; nem kellett kézi alkalmazás-restart a helyreálláshoz.
