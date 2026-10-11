@@ -1,0 +1,6 @@
+# Offline diagnostic environment only; do not install into production .venv.
+numpy==2.2.6
+scipy==1.15.3
+scikit-learn==1.7.2
+requests==2.34.2
+python-dotenv==1.2.4
