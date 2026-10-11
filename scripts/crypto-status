@@ -13,7 +13,9 @@ for unit in "${units[@]}"; do
     systemctl --user is-active --quiet "$unit" || result=1
     systemctl --user is-enabled --quiet "$unit" || result=1
     # Application logs use JSON levels, which may differ from journal priority.
-    journalctl --user -b -u "$unit" -n 80 --no-pager -o cat |
+    invocation=$(systemctl --user show "$unit" -p InvocationID --value)
+    journalctl --user -b -u "$unit" "_SYSTEMD_INVOCATION_ID=$invocation" \
+        -n 80 --no-pager -o cat |
         awk '/"level": "(WARNING|ERROR|CRITICAL)"|Traceback|Failed|ERROR/ {print substr($0,1,400)}' |
         tail -n 3
 done

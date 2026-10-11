@@ -119,3 +119,29 @@ restart-számát, rövid journal figyelmeztetéseit és a helyi health választ.
 Nem ír adatbázisba és nem állít le/indít szolgáltatást.
 
 Nincs automatikus szerver-reboot; az autostart feltételeit logikailag ellenőriztük.
+
+## Deploy utáni állapot
+
+A javítás commitja `7ccf194`, a production branch
+`feature/trading-core-paper`. A checkoutot helyi `merge --ff-only` frissítette;
+a GitHubon nem volt behozandó újabb commit. Mind a négy unit enabled/running,
+linger továbbra is yes. Scanner PID **1359**, web PID **1361**, paper PID
+**19043**, replay worker PID **1362**. Csak a paper PID változott (1360-ról).
+Az érintetlen modulokat futtató scanner/web/replay megtartotta eredeti processét;
+startup Git-metaadatuk ezért még a korábbi 0639a33-at jelezheti.
+
+A paper friss ciklusai már RUNNING állapotúak, új quote warning/exception nincs.
+A régi last_error mező történeti adatként megmarad. Trading ON, paper generation,
+cash/equity, realized PnL és a 0 nyitott pozíció változatlan.
+Mindkét SQLite `PRAGMA quick_check` eredménye ok, a `.env` SHA-256 változatlan,
+a meglévő paper/history/replay rekordszámok nem csökkentek. A scanner újabb
+sikeres ciklust írt; a replay worker API-n READY, friss heartbeat és PID 1362,
+mind a hét korábbi replay job és eredmény látható, a 2024 research run COMPLETED.
+Backend health HTTP 200; a publikus proxy továbbra is Basic Authot kér.
+
+Módosított repo-fájlok: README, ez a riport, `crypto_bot/trading/quotes.py`,
+`tests/test_paper_quotes_permissions.py`, `scripts/crypto-status`, a négy
+`deploy/user/crypto-*.service` minta. A négy telepített user unit ezekkel frissült,
+az eredeti unitok auditkönyvtárba mentve. Új `~/.local/bin/crypto-status` symlink
+és tartós browser tesztkönyvtár készült. Environment/config, production adatbázis
+séma, stratégia, score, risk sizing és live végrehajtás nem változott.
