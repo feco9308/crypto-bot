@@ -18,7 +18,8 @@ from crypto_bot.replay.config import (
 )
 from crypto_bot.replay.exporter import bundle, csv_export, payload
 from crypto_bot.replay.models import ReplayStore
-from crypto_bot.replay.registry import EXITS, STRATEGIES
+from crypto_bot.replay.registry import STRATEGIES
+from crypto_bot.replay.research import exit_choices
 from crypto_bot.replay.stale import WARNING
 from crypto_bot.web.shadow import register_shadow
 
@@ -92,7 +93,7 @@ def register_replay(app, production_database):
             runs=db.runs(),
             worker=worker,
             strategies=list(STRATEGIES.items),
-            exits=EXITS.items,
+            exits=exit_choices(),
             presets=db.presets(),
         )
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from crypto_bot.config.settings import Settings
 from crypto_bot.replay.clock import ms, utc
 from crypto_bot.replay.registry import EXITS, STRATEGIES
+from crypto_bot.replay.research import GATES, RESEARCH_EXITS
 from crypto_bot.replay.stale import POLICIES, STRICT
 from crypto_bot.replay.symbols import valid_symbol
 from crypto_bot.trading.config import PaperSettings
@@ -52,6 +53,7 @@ VARIANT_FIELDS = (
     "exit_policy",
     "exit_parameters",
     "risk_parameters",
+    "btc_regime_entry_gate",
 )
 
 
@@ -110,7 +112,11 @@ def input_config(snapshot):
         for k in INPUT_FIELDS
     }
     result["variants"] = [
-        {k: copy.deepcopy(v[k]) for k in VARIANT_FIELDS} for v in snapshot["variants"]
+        {
+            k: copy.deepcopy(v.get(k, "OFF") if k == "btc_regime_entry_gate" else v[k])
+            for k in VARIANT_FIELDS
+        }
+        for v in snapshot["variants"]
     ]
     return result
 
@@ -148,6 +154,9 @@ def converted(default, values, allowed, path="parameters"):
 def variant(value, index=0):
     path = f"variants[{index}]"
     object_fields(value, VARIANT_FIELDS, path)
+    gate = value.get("btc_regime_entry_gate", "OFF")
+    if gate not in GATES:
+        invalid(f"{path}.btc_regime_entry_gate", "Must be OFF or BULLISH_ONLY")
     errors = []
     try:
         definition = at_field(
@@ -158,7 +167,14 @@ def variant(value, index=0):
         errors.extend(exc.errors)
     policy = value.get("exit_policy", "baseline_v1")
     try:
-        defaults = at_field(f"{path}.exit_policy", lambda: EXITS.get(policy))
+        defaults = at_field(
+            f"{path}.exit_policy",
+            lambda: (
+                RESEARCH_EXITS[policy]
+                if policy in RESEARCH_EXITS
+                else EXITS.get(policy)
+            ),
+        )
     except ConfigValidationError as exc:
         errors.extend(exc.errors)
     if errors:
@@ -236,6 +252,7 @@ def variant(value, index=0):
     snapshot = paper.public_dict()
     return dict(
         name=name,
+        btc_regime_entry_gate=gate,
         strategy=definition.name,
         strategy_version=definition.version,
         strategy_parameters={k: snapshot[k] for k in definition.parameters},

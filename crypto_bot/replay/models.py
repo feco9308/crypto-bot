@@ -149,10 +149,11 @@ class ReplayStore:
                           json_extract(data,'$.action') action,
                           COALESCE(json_extract(data,'$.reasons'),
                                    json_extract(data,'$.decision.reasons')) reasons,
-                          json_extract(data,'$.reason') reason
+                          json_extract(data,'$.reason') reason,
+                          json_extract(data,'$.btc_regime_state') btc_regime_state
                    FROM replay_audit_events WHERE run_id=? AND variant=? AND
                    (json_extract(data,'$.event') IN
-                        ('ENTRY_FILL','EXIT_FILL','NO_FILL','RISK_REJECTED') OR
+                        ('ENTRY_FILL','EXIT_FILL','NO_FILL','RISK_REJECTED','BTC_REGIME_ENTRY_BLOCK') OR
                     (json_extract(data,'$.event')='RISK_DECISION' AND
                      json_extract(data,'$.decision.approved')=0)) ORDER BY id""",
                 (run_id, variant),

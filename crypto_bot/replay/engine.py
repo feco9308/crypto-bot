@@ -18,6 +18,7 @@ from crypto_bot.replay.metrics import summary
 from crypto_bot.replay.portfolio import MemoryLedger
 from crypto_bot.replay.registry import SCORES, STRATEGIES
 from crypto_bot.replay.rejections import legacy_group, reason_key
+from crypto_bot.replay.research import NAME, adaptive, gate_state, save_adaptive
 from crypto_bot.replay.universe import CandleHistory, HistoricalUniverse
 from crypto_bot.risk.manager import RiskManager
 from crypto_bot.scanner.momentum import score_momentum
@@ -34,7 +35,11 @@ class Variant:
         self.risk = RiskManager(self.settings)
         self.ledger = MemoryLedger(self.settings, at(start))
         self.execution = ReplayExecution(self.ledger, self.settings)
-        self.exit = policy(config["exit_policy"], config["exit_parameters"])
+        self.adaptive_exit = config["exit_policy"] == NAME
+        self.exit = policy(
+            "baseline_v1" if self.adaptive_exit else config["exit_policy"],
+            config["exit_parameters"],
+        )
         self.events = []
         self.closed = []
         self.curve = []
@@ -113,7 +118,29 @@ class Variant:
         existing = {p.symbol for p in self.ledger.portfolio.positions()}
         for context, row in self.contexts(rows, watch, now):
             signal = self.strategy.evaluate(context, context.symbol in existing)
-            if signal.action != "HOLD":
+            if (
+                signal.action == "BUY"
+                and self.config.get("btc_regime_entry_gate", "OFF") == "BULLISH_ONLY"
+                and gate_state(row, now) != "BULLISH"
+            ):
+                self.block_entry(signal, "BTC_REGIME_ENTRY_BLOCK")
+                self.event(
+                    "BTC_REGIME_ENTRY_BLOCK",
+                    now,
+                    symbol=signal.symbol,
+                    action="BUY",
+                    reason="BTC_REGIME_ENTRY_BLOCK",
+                    btc_regime=row.get("btc_regime", "UNKNOWN"),
+                    btc_regime_state=gate_state(row, now),
+                    btc_regime_source_timestamp=row.get("btc_regime_source_timestamp"),
+                    strategy_score=str(context.score),
+                    original_strategy_decision=asdict(signal),
+                )
+                continue
+            # Adaptive research is stop-only, as in Shadow; gate never blocks SELL.
+            if signal.action != "HOLD" and not (
+                self.adaptive_exit and signal.action == "SELL"
+            ):
                 self.pending.append((signal, row))
         return {signal.symbol for signal, row in self.pending} | existing
 
@@ -251,6 +278,10 @@ class Variant:
                     strategy_reasons=list(signal.reasons),
                     algorithm_watch=True,
                     btc_regime=row.get("btc_regime", "UNKNOWN"),
+                    btc_regime_source_timestamp=row.get("btc_regime_source_timestamp"),
+                    btc_regime_entry_gate=self.config.get(
+                        "btc_regime_entry_gate", "OFF"
+                    ),
                     intrabar_ambiguity=False,
                 )
                 self.mark({position.symbol: ref}, now)
@@ -277,7 +308,12 @@ class Variant:
         # position before the subsequent portfolio mark. This is metadata only.
         stale.state(position)["last_valid_mark_time"] = at(now).isoformat() + "Z"
         stale.state(position)["last_valid_mark_price"] = str(D(candle["close"]))
-        hit, ambiguous, visited = observe(candle, position, self.exit, conservative)
+        if self.adaptive_exit:
+            model = adaptive(position, self.settings)
+            hit, ambiguous, visited = model.observe(candle, position, now, conservative)
+            save_adaptive(position, model)
+        else:
+            hit, ambiguous, visited = observe(candle, position, self.exit, conservative)
         position.entry_data["intrabar_ambiguity"] |= ambiguous
         position.mfe_price = max(position.mfe_price, *visited)
         position.mae_price = min(position.mae_price, *visited)
@@ -335,8 +371,21 @@ class Variant:
 
     def trade(self, p, now):
         cost = p.notional + p.entry_fee
+        adaptive_audit = {}
+        if self.adaptive_exit:
+            result = (
+                dict(
+                    realized_pnl=str(p.realized_pnl),
+                    return_pct=float(p.realized_pnl / cost * 100),
+                    r_multiple=float(p.realized_pnl / D(p.entry_data["risk_amount"])),
+                )
+                if p.status == "CLOSED"
+                else None
+            )
+            adaptive_audit = adaptive(p, self.settings).audit(result)
         return (
-            p.entry_data
+            adaptive_audit
+            | p.entry_data
             | stale.position_metadata(p, now)
             | dict(
                 position_id=p.id,
@@ -557,7 +606,13 @@ class ReplayEngine:
             history = defaultdict(list, {s: rs for s, rs in history.items() if rs})
             watch = select_watchlist(rows, scanner)
             btc = next((r for r in rows if r["symbol"] == "BTCUSDT"), None)
+            btc_source = (
+                universe.as_of("BTCUSDT", cursor)[-1][0].close_time if btc else None
+            )
             for row in rows:
+                row["btc_regime_source_timestamp"] = (
+                    at(btc_source).isoformat() + "Z" if btc_source is not None else None
+                )
                 row["btc_regime"] = (
                     "BULLISH"
                     if btc and btc["features"]["ema50"] > btc["features"]["ema200"]

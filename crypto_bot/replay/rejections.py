@@ -4,6 +4,7 @@ from collections import Counter
 
 # Exact existing RiskManager/replay strings. This mapping never gates a trade.
 CATEGORIES = {
+    "BTC_REGIME_ENTRY_BLOCK": "btc_regime_entry_block",
     "daily loss limit reached": "daily_loss",
     "drawdown limit reached": "drawdown",
     "total exposure limit reached": "total_exposure",
@@ -65,9 +66,13 @@ def from_audit(events, blocked):
     """
     held = set()
     reasons = Counter()
+    btc_blocks = Counter()
     for event in events:
         kind, symbol = event["event"], event["symbol"]
-        if kind == "ENTRY_FILL":
+        if kind == "BTC_REGIME_ENTRY_BLOCK":
+            reasons["BTC_REGIME_ENTRY_BLOCK"] += 1
+            btc_blocks[event.get("btc_regime_state", "UNKNOWN")] += 1
+        elif kind == "ENTRY_FILL":
             held.add(symbol)
         elif kind == "EXIT_FILL":
             held.discard(symbol)
@@ -88,6 +93,10 @@ def from_audit(events, blocked):
             if action == "BUY":
                 reasons[key or "UNKNOWN_REJECTION_REASON"] += 1
     result = details(reasons)
+    result["btc_regime_entry_block_count"] = sum(btc_blocks.values())
+    result["btc_regime_entry_blocks"] = {
+        k: btc_blocks[k] for k in ("BEARISH", "UNKNOWN", "STALE")
+    }
     result["blocked_entry_breakdown_source"] = "STORED_AUDIT_EVENTS"
     result["blocked_entry_unresolved_attempts"] = max(
         0, sum(blocked.values()) - result["blocked_entry_attempts"]
@@ -95,8 +104,7 @@ def from_audit(events, blocked):
     legacy = Counter()
     for reason, count in reasons.items():
         legacy[legacy_group(reason)] += count
-    result["blocked_entry_breakdown_complete"] = (
-        result["blocked_entry_attempts"] == sum(blocked.values())
-        and legacy == Counter(blocked)
-    )
+    result["blocked_entry_breakdown_complete"] = result[
+        "blocked_entry_attempts"
+    ] == sum(blocked.values()) and legacy == Counter(blocked)
     return result

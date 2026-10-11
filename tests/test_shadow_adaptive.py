@@ -166,8 +166,7 @@ def test_shadow_only_config_ui_and_normal_replay_rejects(request):
     cfg = dict(anchor_run_id=run, policies=[definition()])
     assert validate(cfg, source)["policies"][0]["exit_policy"] == NAME
     assert NAME in SHADOW_EXITS and NAME not in EXITS.items
-    with pytest.raises(ConfigValidationError):
-        variant(dict(exit_policy=NAME), 0)
+    assert variant(dict(exit_policy=NAME), 0)["exit_policy"] == NAME
     cfg["policies"][0]["exit_parameters"] = {"activation_r": "0.1"}
     with pytest.raises(ConfigValidationError):
         validate(cfg, source)

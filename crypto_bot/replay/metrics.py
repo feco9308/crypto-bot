@@ -11,8 +11,21 @@ def outcome(trades):
     closed = [t for t in trades if t["status"] == "CLOSED"]
     pnls = [float(t["realized_pnl"]) for t in closed]
     returns = [t["return_pct"] for t in closed]
-    wins = [x for x in pnls if x > 0]
-    losses = [x for x in pnls if x < 0]
+    # Only the new research policy treats quantized BE dust as flat. Existing
+    # replay policy statistics are unchanged.
+    wins = [
+        float(t["realized_pnl"])
+        for t in closed
+        if float(t["realized_pnl"]) > 0
+        and t["return_pct"]
+        > (0.000001 if t.get("exit_policy") == "adaptive_peak_lock_v1" else 0)
+    ]
+    losses = [
+        float(t["realized_pnl"])
+        for t in closed
+        if t["return_pct"]
+        < -(0.000001 if t.get("exit_policy") == "adaptive_peak_lock_v1" else 0)
+    ]
     rs = [t["r_multiple"] for t in closed if t.get("r_multiple") is not None]
     return dict(
         trade_count=len(closed),
