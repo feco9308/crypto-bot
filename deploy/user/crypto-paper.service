@@ -1,5 +1,6 @@
 [Unit]
 Description=Paper Trading Engine (NO LIVE TRADING)
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -9,7 +10,7 @@ EnvironmentFile=/home/ndvi/crypto-bot/.env
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/ndvi/crypto-bot/.venv/bin/market-scanner paper run
 Restart=on-failure
-RestartSec=15
+RestartSec=5
 TimeoutStopSec=120
 StandardOutput=journal
 StandardError=journal

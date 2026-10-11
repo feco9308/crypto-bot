@@ -1,7 +1,8 @@
 [Unit]
 Description=Isolated Historical Replay Worker (NO LIVE TRADING)
-Wants=network-online.target
-After=network-online.target
+StartLimitIntervalSec=0
+# System network-online.target cannot order services in a user manager.
+# Public-data requests retry in the application; failures also restart below.
 
 [Service]
 Type=simple
@@ -10,7 +11,7 @@ Environment=PYTHONUNBUFFERED=1
 Environment=REPLAY_DATA_DIR=/home/ndvi/crypto-bot/data
 ExecStart=/home/ndvi/crypto-bot/.venv/bin/python -m crypto_bot.replay.worker
 Restart=on-failure
-RestartSec=15
+RestartSec=5
 TimeoutStopSec=120
 Nice=10
 CPUQuota=75%

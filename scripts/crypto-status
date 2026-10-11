@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Read-only production diagnostics; never starts/stops services or opens databases.
+set -u
+units=(crypto-market-scanner crypto-web crypto-paper crypto-replay-worker)
+result=0
+printf 'Service user: %s\n' "$(id -un)"
+loginctl show-user "$(id -un)" -p Linger || result=1
+for unit in "${units[@]}"; do
+    printf '\n%s\n' "$unit"
+    systemctl --user show "$unit" \
+        -p ActiveState -p SubState -p MainPID -p UnitFileState \
+        -p Restart -p RestartUSec -p ExecMainStartTimestamp -p NRestarts || result=1
+    systemctl --user is-active --quiet "$unit" || result=1
+    systemctl --user is-enabled --quiet "$unit" || result=1
+    # Application logs use JSON levels, which may differ from journal priority.
+    journalctl --user -b -u "$unit" -n 80 --no-pager -o cat |
+        awk '/"level": "(WARNING|ERROR|CRITICAL)"|Traceback|Failed|ERROR/ {print substr($0,1,400)}' |
+        tail -n 3
+done
+printf '\nLocal backend health\n'
+curl --fail --silent --show-error --max-time 10 \
+    "${CRYPTO_HEALTH_URL:-http://127.0.0.1:8000/health}" || result=1
+printf '\n'
+exit "$result"

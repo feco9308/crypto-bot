@@ -77,7 +77,11 @@ class BinancePublicQuotes:
         try:
             response = self.session.get(
                 self.url,
-                params={"symbols": json.dumps(sorted(symbols), separators=(",", ":"))},
+                params={
+                    "symbols": json.dumps(
+                        sorted(symbols), separators=(",", ":"), ensure_ascii=False
+                    )
+                },
                 timeout=self.timeout,
             )
             if response.status_code in {418, 429}:

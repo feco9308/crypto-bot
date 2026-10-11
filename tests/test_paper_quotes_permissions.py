@@ -423,6 +423,26 @@ def test_public_bookticker_get_only_validates_partial_rows():
     assert json.loads(kwargs["params"]["symbols"]) == ["BTCUSDT", "ETHUSDT"]
 
 
+def test_public_bookticker_preserves_unicode_symbols_in_compact_json():
+    # Binance rejects literal Unicode backslash escapes in the symbols parameter.
+    http = Http(
+        [
+            {"symbol": "BTCUSDT", "bidPrice": "101", "askPrice": "102"},
+            {"symbol": "牛来USDT", "bidPrice": "0.077", "askPrice": "0.078"},
+        ]
+    )
+    provider = BinancePublicQuotes(
+        "https://api.binance.com", session=http, clock=lambda: NOW
+    )
+    result = provider.get_quotes({"BTCUSDT", "牛来USDT"})
+    assert set(result) == {"BTCUSDT", "牛来USDT"}
+    args, kwargs = http.calls[0]
+    assert args == ("https://api.binance.com/api/v3/ticker/bookTicker",)
+    assert kwargs["params"]["symbols"] == '["BTCUSDT","牛来USDT"]'
+    assert set(kwargs) == {"params", "timeout"}
+    assert result["牛来USDT"].received_at == NOW
+
+
 def test_rate_limit_cooldown_avoids_repeat_requests():
     http = Http({}, 429, {"Retry-After": "60"})
     provider = BinancePublicQuotes(

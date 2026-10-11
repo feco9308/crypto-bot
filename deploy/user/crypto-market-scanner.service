@@ -1,5 +1,6 @@
 [Unit]
 Description=Market Scanner
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -9,7 +10,7 @@ EnvironmentFile=/home/ndvi/crypto-bot/.env
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/ndvi/crypto-bot/.venv/bin/market-scanner scan
 Restart=on-failure
-RestartSec=15
+RestartSec=5
 TimeoutStopSec=1800
 StandardOutput=journal
 StandardError=journal

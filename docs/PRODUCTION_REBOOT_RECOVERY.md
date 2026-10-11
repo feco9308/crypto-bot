@@ -1,0 +1,121 @@
+# Production reboot ellenőrzés — 2026-10-11
+
+## Kiinduló állapot
+
+A checkout tiszta volt: `feature/trading-core-paper`,
+`0639a33b1612fb18e87de41a003431a98e647675`. A GitHub production és
+stale-quarantine branch ugyanitt állt; nem volt újabb, deployra szánt remote
+verzió. A blocked-entry observability, quarantine és config import/export
+változásai megmaradtak. Nem történt pull, reset vagy régebbi verzió visszaállítása.
+
+A vizsgálat kezdetén **mind a négy szolgáltatás active/running és enabled volt**:
+scanner PID 1359, web PID 1361, paper PID 1360, replay worker PID 1362.
+Valós felhasználó: `ndvi`, UID 1000; `Linger=yes` már engedélyezve volt.
+Mind a négy az aktuális boot indulásakor elindult, `NRestarts=0` értékkel.
+A bootnapló 2026-10-10 07:28:27 UTC indulást rögzít; ugyanott az óra később
+visszalépett. Az ellenőrzéskor az NTP már aktív, az óra szinkronizált.
+Az autostart elmaradása a jelenlegi boot naplójából nem igazolható.
+
+A backend `0.0.0.0:8000` címen figyelt; `/health` HTTP 200, status ok.
+`https://crypto.vagilak.hu/health` a LAN-proxy 192.168.1.17 címéről
+HTTP 401-et és `WWW-Authenticate: Basic` fejlécet adott. Ez az OpenResty/Nginx
+Proxy Manager hozzáférésvédelme, nem alkalmazásleállás vagy DNS-hiba.
+A proxy konfigurációját és jelszóvédelmét nem módosítottuk.
+
+## Igazolt paper adatlekérési hiba
+
+A paper process működött, de minden public quote-hiány miatt DEGRADED volt.
+A szimbólumlistában `牛来USDT` szerepelt. A korábbi `json.dumps` ezt literal
+Unicode-escape formában küldte. Binance bookTicker HTTP 400 / -1100
+„Illegal characters” hibával a teljes batch-et elutasította.
+
+Azonos public GET kérésekkel igazoltuk:
+
+- compact ASCII lista BTCUSDT/ETHUSDT: HTTP 200;
+- compact BTCUSDT/牛来USDT lista `ensure_ascii=True`: HTTP 400;
+- ugyanaz `ensure_ascii=False`: HTTP 200, mindkét quote megérkezett.
+
+Javítás: kizárólag a request paraméter UTF-8 JSON szerializálása változott a
+`crypto_bot/trading/quotes.py` fájlban. Nincs más endpoint, API key, signed
+request, fallback, orderküldés vagy strategy/risk/portfolio változtatás.
+Mock regressziós teszt ellenőrzi a compact JSON-t és a GET-only hívást.
+
+## Autostart és restart
+
+A meglévő négy user unitot használjuk. Mindegyikben:
+
+```ini
+[Unit]
+StartLimitIntervalSec=0
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+```
+
+A korábbi RestartSec 15 helyett 5. A végtelen időtávú újrapróbálás boot/hálózati
+indulási hibánál megakadályozza a start-limit miatti tartós letiltást.
+Az operatori stop továbbra is stop marad; nem indokolta semmi a Restart=always-t.
+
+A replay user unitból eltávolítottuk a rendszerszintű hálózatot ténylegesen nem
+szinkronizáló `network-online.target` függőséget. A scanner normál ciklusai
+retry-znek, a paper quote-hibánál friss ár nélkül elutasít és újrapróbálkozik,
+a webnek nem kell Binance az induláshoz. A replay worker helyi DB-vel indul,
+hálózati feladat hibáját külön run hibaként jelenti. A restart policy egy
+process-indulási hibát újrapróbál, egy FAILED replay jobot nem futtat újra.
+Nincs sleep hack vagy külön hálózatfigyelő process.
+
+Az abszolút WorkingDirectory/ExecStart/EnvironmentFile utak léteznek; a
+systemd user manager ndvi identitását öröklik. A replay worker abszolút
+REPLAY_DATA_DIR-ja a production data könyvtár. A `.env` változatlan maradt.
+A `default.target` enable-symlinkek és linger miatt interaktív SSH/login nem kell.
+`systemd-analyze --user verify` hibamentes; daemon-reload és enable --now
+mind a négy unitra megtörtént. A futó scanner adatrögzítésének megőrzésére
+nincs szükségtelen scanner restart. A quote javítás betöltéséhez csak paper
+restart szükséges; a már futó web és idle replay worker kódja nem változott.
+
+## Ellenőrzés és adatok
+
+Az indulás előtti státusz/paper/DB-count bizonyítékok:
+`artifacts/reboot-recovery-2026-10-11/before.json` és `*.before.txt`.
+Az újraindítás utáni bizonyíték az ugyanott tárolt `after.json`.
+Ezek Gitből kizárt helyi auditfájlok.
+
+Nincs DB migration, reset, env-módosítás, replay cache vagy eredménytörlés.
+Paper generation 1, induló cash/equity 948.211234726629 USDT,
+realized PnL -51.788765273371 USDT; nyitott pozíció 0. A meglévő drawdown-limit
+megmarad: a friss quote visszatérése nem oldja fel a normál risk tiltást.
+A korábbi hét replay run, 21 variant és a befejezett 2024 research run megmarad.
+
+A teljes karbantartott tesztcsomag futtatásakor kiderült, hogy a Chromiumhoz
+szükséges korábbi `/tmp` könyvtár rebootkor eltűnt. A tesztfüggőségeket most
+tartósan, adminjog nélkül bontottuk ki ide:
+`~/.local/lib/crypto-bot-browser/`. Ez nem production runtime függőség.
+
+```bash
+PYTHONPATH=/home/ndvi/crypto-bot-recovery \
+LD_LIBRARY_PATH=/home/ndvi/.local/lib/crypto-bot-browser/usr/lib/x86_64-linux-gnu \
+/home/ndvi/crypto-bot/.venv/bin/pytest -q
+```
+
+A teljes karbantartott tesztcsomag **396 passed** (86 másodperc), beleértve
+a Unicode public GET regressziót és a desktop/mobile browser teszteket.
+`ruff check crypto_bot tests`, `bash -n scripts/crypto-status` és mind a négy
+user unit systemd verify ellenőrzése sikeres.
+
+## Egyparancsos diagnosztika
+
+```bash
+crypto-status
+```
+
+Forrás: `scripts/crypto-status`; felhasználói symlink:
+`~/.local/bin/crypto-status`. Megmutatja a valós usert/lingert, mind a négy unit
+állapotát, PID-jét, enabled állapotát, restart policy-jét, indulási idejét,
+restart-számát, rövid journal figyelmeztetéseit és a helyi health választ.
+Nem ír adatbázisba és nem állít le/indít szolgáltatást.
+
+Nincs automatikus szerver-reboot; az autostart feltételeit logikailag ellenőriztük.

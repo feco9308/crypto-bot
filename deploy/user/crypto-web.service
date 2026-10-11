@@ -1,5 +1,6 @@
 [Unit]
 Description=Production Gunicorn Dashboard
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -9,7 +10,7 @@ EnvironmentFile=/home/ndvi/crypto-bot/.env
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/ndvi/crypto-bot/.venv/bin/gunicorn --config /home/ndvi/crypto-bot/gunicorn.conf.py crypto_bot.web.app:create_app()
 Restart=on-failure
-RestartSec=15
+RestartSec=5
 TimeoutStopSec=120
 StandardOutput=journal
 StandardError=journal

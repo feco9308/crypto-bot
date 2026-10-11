@@ -321,17 +321,21 @@ stream alapú ármodell, OHLCV/spread archiválás, history retention és üteme
 | SQLite | `/home/ndvi/crypto-bot/data/market.db` |
 | Web | Gunicorn, `0.0.0.0:8000`, `https://crypto.vagilak.hu` |
 | Futási mód | **ndvi felhasználói systemd**, `linger=yes` |
-| Unitok | `crypto-market-scanner`, `crypto-web`, `crypto-paper` |
+| Unitok | `crypto-market-scanner`, `crypto-web`, `crypto-paper`, `crypto-replay-worker` |
 
-A szolgáltatások terminálbezárás után is futnak és bootkor indulnak. Mindhárom azonos
-checkoutból és közös DB-vel dolgozik. A `/home/ndvi/crypto-bot-paper` fejlesztési checkout;
+A szolgáltatások terminálbezárás után is futnak és bootkor indulnak. Azonos
+checkoutból dolgoznak; a scanner/web/paper adatbázisa `data/market.db`, a replay
+elkülönített adatbázisa `data/replay.db`. A `/home/ndvi/crypto-bot-paper` fejlesztési checkout;
 a korábbi 8001-es preview nem production. A migráció után a paper trading OFF maradt;
 a mindenkori állapotot a status parancs mutatja, service restart megőrzi azt.
 
 ```bash
 # STATUS
-systemctl --user status crypto-market-scanner crypto-web crypto-paper
-systemctl --user is-enabled crypto-market-scanner crypto-web crypto-paper
+crypto-status
+# Ha a parancs még nincs telepítve:
+/home/ndvi/crypto-bot/scripts/crypto-status
+systemctl --user status crypto-market-scanner crypto-web crypto-paper crypto-replay-worker
+systemctl --user is-enabled crypto-market-scanner crypto-web crypto-paper crypto-replay-worker
 loginctl show-user ndvi -p Linger
 
 # START / STOP / RESTART
@@ -374,8 +378,23 @@ mkdir -p ~/.config/systemd/user
 cp deploy/user/*.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 loginctl enable-linger ndvi
-systemctl --user enable --now crypto-market-scanner crypto-web crypto-paper
+systemctl --user enable --now crypto-market-scanner crypto-web crypto-paper crypto-replay-worker
 ```
+
+A `crypto-status` telepítése (csak olvasó diagnosztika):
+
+```bash
+mkdir -p ~/.local/bin
+ln -s /home/ndvi/crypto-bot/scripts/crypto-status ~/.local/bin/crypto-status
+```
+
+A user unitok `Restart=on-failure`, `RestartSec=5` és
+`StartLimitIntervalSec=0` beállítással újrapróbálják a sikertelen indulást,
+időkorlát miatti végleges tiltás nélkül. A user manager `network-online.target`
+nem a rendszerszintű hálózatra vár; hálózati hibánál a scanner/paper normál
+ciklusai újrapróbálkoznak, friss ár nélkül nincs paper fill. Nincs boot előtti
+sleep vagy interaktív login-függőség. Az ellenőrzés és az ismert proxy/quote
+hibák részletei: [Reboot recovery](docs/PRODUCTION_REBOOT_RECOVERY.md).
 
 A user unitok az ndvi user manager identitását öröklik. A system
 `network-online.target` nem kapcsolható hozzájuk; hálózati hiba után a scanner
