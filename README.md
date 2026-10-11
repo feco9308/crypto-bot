@@ -396,6 +396,12 @@ ciklusai újrapróbálkoznak, friss ár nélkül nincs paper fill. Nincs boot el
 sleep vagy interaktív login-függőség. Az ellenőrzés és az ismert proxy/quote
 hibák részletei: [Reboot recovery](docs/PRODUCTION_REBOOT_RECOVERY.md).
 
+Az újraindításos ellenőrzés kétórás bootkori órakorrekciót igazolt. A négy
+unit ezért `ExecStartPre=/usr/lib/systemd/systemd-time-wait-sync` segítségével
+megvárja az időszinkront, mielőtt az alkalmazást indítja. A várakozás timeoutja
+120 másodperc; szükség esetén az on-failure policy újrapróbálja. Nem kell sudo
+a várakozáshoz, a már aktív NTP service adja a szinkron állapotot.
+
 A user unitok az ndvi user manager identitását öröklik. A system
 `network-online.target` nem kapcsolható hozzájuk; hálózati hiba után a scanner
 következő ciklusban újrapróbálkozik.

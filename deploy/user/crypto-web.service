@@ -8,6 +8,8 @@ Type=simple
 WorkingDirectory=/home/ndvi/crypto-bot
 EnvironmentFile=/home/ndvi/crypto-bot/.env
 Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/usr/lib/systemd/systemd-time-wait-sync
+TimeoutStartSec=120
 ExecStart=/home/ndvi/crypto-bot/.venv/bin/gunicorn --config /home/ndvi/crypto-bot/gunicorn.conf.py crypto_bot.web.app:create_app()
 Restart=on-failure
 RestartSec=5

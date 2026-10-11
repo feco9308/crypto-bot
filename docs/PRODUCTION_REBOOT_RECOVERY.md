@@ -145,3 +145,48 @@ Módosított repo-fájlok: README, ez a riport, `crypto_bot/trading/quotes.py`,
 az eredeti unitok auditkönyvtárba mentve. Új `~/.local/bin/crypto-status` symlink
 és tartós browser tesztkönyvtár készült. Environment/config, production adatbázis
 séma, stratégia, score, risk sizing és live végrehajtás nem változott.
+
+## Valódi reboot próba és bootkori órahiba
+
+A felhasználó ezután valóban újraindította a szervert. Az új bootban mind a
+négy service **5,4 másodperccel boot után** indult, új PID-ekkel:
+scanner 1333, paper 1334, web 1335, replay worker 1336. Mind enabled/running,
+linger yes, NRestarts 0. Az autostartot ezzel tényleges reboot is igazolta.
+
+A paper kezdeti DEGRADED és a scanner ERROR állapota más okból keletkezett:
+a gép órája bootkor két órával előrébb járt. A timesyncd napló először
+13:04 UTC-t mutatott, majd az első NTP szinkron **2026-10-11 11:05:00 UTC**
+időre állította vissza. Előtte a scanner minden gyertyát stale-nek minősített,
+a paper „No fresh closed 1h scanner observations” figyelmeztetést adott.
+Ez nem a Unicode quote-hiba visszatérése. A helyes órával a paper már magától
+RUNNING lett; a scanner a következő normál ciklusban újra próbálkozik.
+Az RTC-beállítás/hypervisor oldal pontos oka nem bizonyított; nem állítottuk
+át a hardverórát vagy a rendszerszintű NTP-konfigurációt.
+
+A következő boot védelmére mind a négy user unit kapott:
+
+```ini
+ExecStartPre=/usr/lib/systemd/systemd-time-wait-sync
+TimeoutStartSec=120
+```
+
+Ez a systemd beépített, eseményalapú szinkron-várakozója, nem sleep.
+A telepített upstream system unit megjegyzése szerint maga a program nem
+igényel CAP_SYS_TIME-ot. Felhasználóként, majd átmeneti user service-ként is
+kipróbáltuk: sikeres, exit 0. A systemd unit verify mind a négy mintára sikeres.
+Ha még nincs szinkron, az ExecStart nem fut; timeout esetén az on-failure/5s
+policy korlátlanul újrapróbálja. A szinkronhoz a meglévő, aktív timesyncd kell.
+Az általános időkapu más NTP implementációra nem lett tesztelve.
+
+A minták és telepített unitok frissültek daemon-reloaddal. A már működő
+process-eket nem restartoltuk. Az új időkapu valódi boot alatti kivárását ezért
+egy későbbi reboot igazolhatja; újabb rebootot nem végeztünk automatikusan.
+Az aktuális process-ek korai started_at/last_error időbélyegei a hibás órából
+származó történeti metaadatok maradnak, nem írtuk át őket.
+
+Reboot után a paper generation/ON/cash/equity/PnL/pozíciószám változatlan,
+mind a hét replay run és 52701 replay fill megmaradt; research run COMPLETED,
+worker READY és friss heartbeat. `.env` SHA-256 változatlan. A bizonyíték:
+`artifacts/reboot-recovery-2026-10-11/reboot-proof.json`.
+Alkalmazáskód, score, strategy, risk és ledger logika ehhez nem változott;
+csak a négy unitminta és az üzemeltetési leírás módosult.
