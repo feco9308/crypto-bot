@@ -86,3 +86,6 @@ and matched rescue classification. Existing production tests also run.
 Only web and an idle replay worker require restart. No scanner/paper restart,
 DB migration, reset, setting change, historical audit edit or normal registry
 change is needed.
+
+A completed 2024 run and all numeric breakdowns are recorded in
+[SHADOW_ADAPTIVE_VALIDATION.md](SHADOW_ADAPTIVE_VALIDATION.md).
