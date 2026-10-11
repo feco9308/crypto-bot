@@ -566,3 +566,5 @@ NO PAPER RESET · NO PRODUCTION DB REPLAY WRITES · STRICT NO-LOOKAHEAD REPLAY.*
 
 Replay-only BTC regime gate: [research configuration and method](docs/REPLAY_BTC_REGIME_GATE.md). OFF is the default; BULLISH_ONLY gates BUY opportunities using the existing closed-data BTC regime. No production/paper promotion.
 The [2024 validation report](docs/REPLAY_BTC_REGIME_VALIDATION.md) records the independent A/B/C/D portfolio runs, rejection breakdowns and export paths.
+
+Replay-only score / delta4h entry bounds: [configuration and audit semantics](docs/REPLAY_ENTRY_FILTER.md), [2024 control-parity and portfolio validation](docs/REPLAY_ENTRY_FILTER_VALIDATION.md). Optional minima are inclusive and maxima exclusive; unrestricted defaults preserve previous runs. No production promotion.

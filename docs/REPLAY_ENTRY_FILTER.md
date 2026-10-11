@@ -49,8 +49,9 @@ Monthly trade metrics group by exit month, while monthly drawdown uses the
 existing hourly equity observations (not claimed minute-precise).
 Transaction cost is fees + reported slippage cost. Slippage is already embedded
 in realized fills: it must not be subtracted from net PnL a second time.
-Positive trade PnL + each positive trade's fees/slippage is reported as gross
-winning-trade profit estimate, not a hypothetical no-fee portfolio rerun.
+The sum of max(realized trade PnL + that trade's fees + slippage, 0) over closed
+trades is reported as an approximate pre-cost gross profit estimate, not a
+hypothetical no-fee portfolio rerun. No entry, sizing or trade path is recomputed.
 
 Production paper, ReferenceStrategy, RiskManager, PortfolioService, scanner,
 score and all existing exit models remain unchanged. No live trading or
