@@ -31,6 +31,10 @@ policies are baseline_v1, fixed_tp (1.5%), r_tp (0.5R), and trailing_pct
   quantity, price, fee, slippage, ATR, original stop and risk amount are copied.
 - Existing `exits.observe/levels/policy` implement exit triggers unchanged.
   Exit fill arithmetic uses the anchor's fee/slippage and canonical quantity.
+- `shadow_data.py` pins cached archives to the anchor manifest, including
+  recorded missing objects. Expired negative cache objects are not refreshed
+  into different source data. Unpinned newly needed archive objects still use
+  the existing public GET-only client and are included in revision metadata.
 - Strategy exits use the same registered strategy's **held-position branch**,
   with unchanged score/features computed from closed historical 1h data.
   No shadow BUY is evaluated or generated. Current registry strategy is
@@ -40,6 +44,7 @@ policies are baseline_v1, fixed_tp (1.5%), r_tp (0.5R), and trailing_pct
   New regular replay jobs may wait behind an already-running shadow job.
   Restart/shutdown requeues shadow work and deterministically recomputes it
   from its immutable snapshot; normal replay checkpoints remain unchanged.
+  A shadow job's network/data failure is job-local and cannot stop the worker.
 
 Frozen entries also eliminate the existing normal multi-variant shared-history
 entry coupling: no shadow-held symbol can create an additional anchor BUY.

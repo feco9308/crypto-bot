@@ -428,3 +428,62 @@ def test_missing_current_minute_cannot_replay_an_older_minute():
     assert out["status"] == "OPEN_STALE"
     assert out["last_valid_mark_time"] == at(START + MINUTE).isoformat() + "Z"
     assert out["exit_time"] is None
+
+
+def test_pinned_missing_archive_never_refreshes_or_uses_future_coverage(tmp_path):
+    from unittest.mock import Mock
+
+    from crypto_bot.replay.cache import CandleCache
+    from crypto_bot.replay.shadow_data import ShadowHistoricalData
+
+    cache = CandleCache(tmp_path / "cache")
+    key = "data/spot/monthly/klines/FRONTUSDT/1m/FRONTUSDT-1m-2024-09.zip"
+    cache.missing(key)
+    with cache.connect() as db:
+        db.execute("UPDATE objects SET checked_at=0")
+    http = Mock()
+    provider = ShadowHistoricalData(cache, {key: None}, session=http)
+    assert not provider.object("FRONTUSDT", "1m", "monthly", "2024-09")
+    http.get.assert_not_called()
+    assert provider.used == {key} and provider.missing == 1
+
+
+def test_pinned_archive_mismatch_fails_instead_of_silent_revision_change(tmp_path):
+    from crypto_bot.replay.cache import CandleCache
+    from crypto_bot.replay.shadow_data import ShadowHistoricalData
+
+    cache = CandleCache(tmp_path / "cache")
+    key = "data/spot/monthly/klines/BTCUSDT/1m/BTCUSDT-1m-2024-01.zip"
+    cache.put("BTCUSDT", "1m", [], key, "actual-sha")
+    provider = ShadowHistoricalData(cache, {key: "anchor-sha"})
+    with pytest.raises(ValueError, match="revision unavailable or changed"):
+        provider.object("BTCUSDT", "1m", "monthly", "2024-01")
+
+
+def test_shadow_worker_completes_without_touching_source_and_failure_is_job_local(
+    request,
+):
+    from crypto_bot.replay.cache import CandleCache
+    from crypto_bot.replay.shadow_worker import once
+    from crypto_bot.replay.worker import ReplayWorker
+
+    _, source, _ = request.getfixturevalue("web_case")
+    run = completed_source(source)
+    store = ShadowStore(source.path.parent / "shadow-exit.db")
+    cfg = validate(dict(anchor_run_id=run, policies=[{}]), source)
+    first = store.create(cfg, source)
+    worker = ReplayWorker(source, CandleCache(source.path.parent / "cache"), Stops)
+    before = source.get(run)
+    assert once(worker)
+    assert store.get(first)["status"] == "COMPLETED"
+    assert source.get(run) == before and worker.active is None
+
+    class Offline(Stops):
+        def hourly(self, *args):
+            raise TimeoutError("fixed offline test")
+
+    second = store.create(cfg, source)
+    worker.provider_factory = Offline
+    assert once(worker)  # A failed shadow job does not kill the replay worker.
+    assert store.get(second)["status"] == "FAILED"
+    assert worker.active is None and source.get(run) == before
