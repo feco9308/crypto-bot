@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% block content %}
+<p><a href="{{ url_for('shadow_home') }}">← Shadow Exit Research</a></p><h1>Matched-entry research results</h1>
+<p class="warning">MATCHED-ENTRY EXIT COMPARISON — NOT PORTFOLIO PERFORMANCE. NOT STATISTICALLY VALIDATED.</p>
+<section id="shadow-result" data-id="{{ ident }}"><p id="shadow-job-status" role="status"></p><p id="shadow-anchor-summary"></p>
+<p>Returns and R use the same canonical size/risk for each entry. Pairwise comparisons exclude open, stale and incomplete outcomes. Common-entry metrics use the intersection of complete outcomes across all policies; per-policy closed samples are descriptive only. No automatic “best” policy.</p>
+<p><a href="/api/replay/shadow/runs/{{ ident }}/export.compact.json">Compact JSON</a> · <a href="/api/replay/shadow/runs/{{ ident }}/export.json">Detailed JSON</a></p>
+<h2>Policy summaries</h2><div class="table-scroll"><table><thead><tr><th>Policy / parameters</th><th>Canonical</th><th>Closed comparable</th><th>Incomplete</th><th>Stale</th><th>Common sample</th><th>Common avg R</th><th>Common return %</th><th>Common win %</th><th>Normalized PF</th><th>Sample</th></tr></thead><tbody id="shadow-summary"></tbody></table></div>
+<h2>Pairwise matrix</h2><div class="table-scroll"><table><thead><tr><th>A vs B</th><th>Matched</th><th>A wins</th><th>B wins</th><th>Ties</th><th>Incomplete</th><th>Mean return Δ</th><th>Median return Δ</th><th>Mean R Δ</th><th>Sample</th></tr></thead><tbody id="shadow-pairwise"></tbody></table></div>
+<h2>Matched-entry breakdowns</h2><label>Group <select id="shadow-group"><option>symbol</option><option>atr_pct</option><option>range_position</option><option>btc_regime</option><option>asset_group</option><option>rsi</option><option>entry_score</option><option>relative_volume</option><option>month</option><option>quarter</option></select></label>
+<div class="table-scroll"><table><thead><tr><th>Group</th><th>Policy</th><th>Canonical</th><th>Common matched</th><th>Avg R</th><th>Return %</th><th>Incomplete</th><th>Stale</th><th>Sample</th></tr></thead><tbody id="shadow-breakdown"></tbody></table></div>
+</section><script defer src="{{ url_for('static',filename='shadow_result.js') }}"></script>{% endblock %}

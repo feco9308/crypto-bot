@@ -1,0 +1,14 @@
+{% extends 'base.html' %}{% block content %}
+<p><a href="{{ url_for('replay_home') }}">← Replay Lab</a></p>
+<h1>Shadow Exit Research</h1>
+<p class="warning">MATCHED-ENTRY EXIT COMPARISON — NOT PORTFOLIO PERFORMANCE. NOT STATISTICALLY VALIDATED.</p>
+<p>A completed normal replay variant supplies immutable FILLED BUY entries. Shadow exits have no portfolio, cash, exposure or position slots. No strategy optimization or production promotion.</p>
+<section><form id="shadow-form" data-csrf="{{ csrf }}" data-exits='{{ exits|tojson }}'>
+<label>Name <input id="shadow-name" value="Shadow Exit Research" maxlength="80" required></label>
+<label>Anchor variant <select id="shadow-anchor" required>{% for c in choices %}<option value="{{ c.id }}:{{ c.number }}">{{ c.name }} · {{ c.variant_name }} · {{ c.start }} → {{ c.end }}</option>{% endfor %}</select></label>
+<p>Period, strategy, risk, entry fee/slippage, execution and stale policy are inherited from the anchor. Each policy receives every canonical entry.</p>
+<div id="shadow-policies"></div><button type="button" id="shadow-add">Add exit policy</button>
+<button type="button" id="shadow-validate">VALIDATE</button><button type="submit">START SHADOW RESEARCH</button>
+<p id="shadow-status" role="status"></p></form></section>
+<section><h2>Research jobs</h2>{% for j in jobs %}<p><a href="{{ url_for('shadow_result_page',ident=j.id) }}">{{ j.id }}</a> · {{ j.status }}{% if j.error %} · {{ j.error }}{% endif %}</p>{% else %}<p>No shadow jobs yet.</p>{% endfor %}</section>
+<script defer src="{{ url_for('static',filename='shadow.js') }}"></script>{% endblock %}

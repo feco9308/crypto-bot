@@ -20,6 +20,7 @@ from crypto_bot.replay.exporter import bundle, csv_export, payload
 from crypto_bot.replay.models import ReplayStore
 from crypto_bot.replay.registry import EXITS, STRATEGIES
 from crypto_bot.replay.stale import WARNING
+from crypto_bot.web.shadow import register_shadow
 
 
 def register_replay(app, production_database):
@@ -66,6 +67,8 @@ def register_replay(app, production_database):
             return request.get_json()
         except (BadRequest, UnsupportedMediaType):
             invalid("$", "Malformed JSON; supply a valid JSON object")
+
+    register_shadow(app, store, csrf, json_body)
 
     @app.post("/api/replay/config/validate")
     def replay_validate_config():

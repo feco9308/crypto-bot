@@ -312,6 +312,19 @@ a régi config/CSV alapú programokat ne használd az új platform indítására
 Következő mérföldkő: paper ledger reconciliation és tartós megfigyelés,
 stream alapú ármodell, OHLCV/spread archiválás, history retention és ütemezett backup.
 
+## Shadow Exit Research
+
+A Replay Lab új `/replay/shadow-exit` oldalán egy befejezett anchor variant
+tényleges FILLED BUY belépései több meglévő exit policy-val összehasonlíthatók.
+Ez **MATCHED-ENTRY EXIT COMPARISON**, nem külön portfólió-backtest: nincs shadow
+cash/equity, position slot vagy új belépés. A summary és páronkénti összevetés
+nyitott/stale/adathiányos outcome-okat kizár, minden kis mintát megjelöl.
+**NOT STATISTICALLY VALIDATED. NO LIVE TRADING.**
+
+[Architektúra, API, normalizálás és export](docs/SHADOW_EXIT_RESEARCH.md).
+Külön `data/shadow-exit.db` tároló; indítás az idle replay workerben. Telepítéskor
+csak web/replay worker restart kell, scanner/paper nem változik.
+
 ## OPERATIONS — jelenlegi production szerver
 
 | Elem | Production beállítás |

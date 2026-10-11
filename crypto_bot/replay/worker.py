@@ -99,6 +99,9 @@ class ReplayWorker:
         except BlockingIOError:
             raise RuntimeError("Another replay worker is running") from None
         self.store.recover()
+        from crypto_bot.replay.shadow_store import ShadowStore
+
+        ShadowStore(self.store.path.parent / "shadow-exit.db").recover()
 
         def pulse():
             while not self.stop.wait(5):
@@ -112,6 +115,10 @@ class ReplayWorker:
         try:
             while not self.stop.is_set():
                 worked = self.once()
+                if not worked:
+                    from crypto_bot.replay.shadow_worker import once as shadow_once
+
+                    worked = shadow_once(self)
                 if once:
                     return
                 if not worked:

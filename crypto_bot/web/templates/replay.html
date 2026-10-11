@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1>HISTORICAL REPLAY LAB</h1>
+<p><a href="{{ url_for('shadow_home') }}">Shadow Exit Research — matched-entry comparison</a></p>
 <p>Historical research in a separate replay database and cache. NO LIVE TRADING · production paper state is untouched.</p>
 <p><a href="#replay-runs">Runs</a> · <a href="#new-replay">New Run</a> · <a href="{{ url_for('replay_compare_page') }}">Compare</a> · <a href="{{ url_for('replay_presets_page') }}">Presets</a></p>
 <p>Replay worker: <strong>{{ worker.status }}</strong> · {{ worker.pid or 'not started' }}. Queued runs require the separate worker service.</p>
