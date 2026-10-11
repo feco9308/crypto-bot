@@ -340,6 +340,12 @@ def summary(rows):
     }
 
 
+def period_summary(rows):
+    """Time robustness focuses on normalization, recovery and distances."""
+    result = summary(rows)
+    return {k: result[k] for k in ("n", "features", "recovery", "candidate_distances")}
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--root", type=Path, required=True)
@@ -434,7 +440,7 @@ def main():
         },
     )
     result["monthly"] = {
-        f"2024-{m:02}": summary(
+        f"2024-{m:02}": period_summary(
             [
                 r
                 for r in rows
@@ -446,7 +452,7 @@ def main():
         for m in range(1, 13)
     }
     result["quarterly"] = {
-        f"Q{q}": summary(
+        f"Q{q}": period_summary(
             [
                 r
                 for r in rows
