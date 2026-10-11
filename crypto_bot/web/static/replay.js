@@ -55,7 +55,7 @@
         const value = saved[input.dataset.group]?.[input.dataset.key];
         if (value !== undefined) {
           if (input.type === 'checkbox') input.checked = value;
-          else input.value = value;
+          else input.value = value ?? '';
         }
       });
     }
@@ -64,6 +64,7 @@
   }
 
   function value(input) {
+    if (input.dataset.group === 'entry_filter' && input.value === '') return null;
     return input.type === 'checkbox' ? input.checked
       : input.dataset.type === 'integer' ? Number(input.value) : input.value;
   }
@@ -76,7 +77,7 @@
         strategy: node.querySelector('[data-key=strategy]').value,
         exit_policy: node.querySelector('[data-key=exit_policy]').value,
         btc_regime_entry_gate: node.querySelector('[data-key=btc_regime_entry_gate]').value,
-        strategy_parameters: {}, exit_parameters: {}, risk_parameters: {pyramiding: false}
+        entry_filter: {}, strategy_parameters: {}, exit_parameters: {}, risk_parameters: {pyramiding: false}
       };
       node.querySelectorAll('[data-group]').forEach(input => {
         v[input.dataset.group][input.dataset.key] = value(input);

@@ -18,7 +18,13 @@ from crypto_bot.replay.metrics import summary
 from crypto_bot.replay.portfolio import MemoryLedger
 from crypto_bot.replay.registry import SCORES, STRATEGIES
 from crypto_bot.replay.rejections import legacy_group, reason_key
-from crypto_bot.replay.research import NAME, adaptive, gate_state, save_adaptive
+from crypto_bot.replay.research import (
+    NAME,
+    adaptive,
+    entry_filter_reasons,
+    gate_state,
+    save_adaptive,
+)
 from crypto_bot.replay.universe import CandleHistory, HistoricalUniverse
 from crypto_bot.risk.manager import RiskManager
 from crypto_bot.scanner.momentum import score_momentum
@@ -137,6 +143,22 @@ class Variant:
                     original_strategy_decision=asdict(signal),
                 )
                 continue
+            if signal.action == "BUY":
+                failed = entry_filter_reasons(row, self.config.get("entry_filter", {}))
+                if failed:
+                    self.block_entry(signal, "RESEARCH_ENTRY_FILTER_BLOCK")
+                    self.event(
+                        "RESEARCH_ENTRY_FILTER_BLOCK",
+                        now,
+                        symbol=signal.symbol,
+                        action="BUY",
+                        reason="RESEARCH_ENTRY_FILTER_BLOCK",
+                        score=str(context.score),
+                        delta_4h=row.get("momentum", {}).get("delta_4h"),
+                        filter_reasons=failed,
+                        original_strategy_decision=asdict(signal),
+                    )
+                    continue
             # Adaptive research is stop-only, as in Shadow; gate never blocks SELL.
             if signal.action != "HOLD" and not (
                 self.adaptive_exit and signal.action == "SELL"

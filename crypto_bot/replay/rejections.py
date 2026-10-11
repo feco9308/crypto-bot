@@ -5,6 +5,7 @@ from collections import Counter
 # Exact existing RiskManager/replay strings. This mapping never gates a trade.
 CATEGORIES = {
     "BTC_REGIME_ENTRY_BLOCK": "btc_regime_entry_block",
+    "RESEARCH_ENTRY_FILTER_BLOCK": "research_entry_filter_block",
     "daily loss limit reached": "daily_loss",
     "drawdown limit reached": "drawdown",
     "total exposure limit reached": "total_exposure",
@@ -67,9 +68,13 @@ def from_audit(events, blocked):
     held = set()
     reasons = Counter()
     btc_blocks = Counter()
+    filter_blocks = Counter()
     for event in events:
         kind, symbol = event["event"], event["symbol"]
-        if kind == "BTC_REGIME_ENTRY_BLOCK":
+        if kind == "RESEARCH_ENTRY_FILTER_BLOCK":
+            reasons[kind] += 1
+            filter_blocks.update(event.get("filter_reasons", []))
+        elif kind == "BTC_REGIME_ENTRY_BLOCK":
             reasons["BTC_REGIME_ENTRY_BLOCK"] += 1
             btc_blocks[event.get("btc_regime_state", "UNKNOWN")] += 1
         elif kind == "ENTRY_FILL":
@@ -93,6 +98,14 @@ def from_audit(events, blocked):
             if action == "BUY":
                 reasons[key or "UNKNOWN_REJECTION_REASON"] += 1
     result = details(reasons)
+    result["research_entry_filter_block_count"] = reasons["RESEARCH_ENTRY_FILTER_BLOCK"]
+    result["research_entry_filter_blocks"] = {
+        k: filter_blocks[k] for k in (
+            "SCORE_BELOW_MIN", "SCORE_ABOVE_MAX",
+            "DELTA4H_BELOW_MIN", "DELTA4H_ABOVE_MAX",
+            "SCORE_UNAVAILABLE", "DELTA4H_UNAVAILABLE",
+        )
+    }
     result["btc_regime_entry_block_count"] = sum(btc_blocks.values())
     result["btc_regime_entry_blocks"] = {
         k: btc_blocks[k] for k in ("BEARISH", "UNKNOWN", "STALE")

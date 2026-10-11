@@ -1,5 +1,7 @@
 """Replay-only research gates/exits. No production order or account access."""
 
+from decimal import DecimalException
+
 from crypto_bot.replay.clock import ms
 from crypto_bot.replay.registry import EXITS
 from crypto_bot.replay.shadow_adaptive import NAME, AdaptivePeakLock, PeakState
@@ -7,6 +9,37 @@ from crypto_bot.trading.domain import D
 
 GATES = ("OFF", "BULLISH_ONLY")
 RESEARCH_EXITS = {NAME: {}}
+FILTER_DEFAULTS = dict(
+    score_min=None, score_max=None, delta4h_min=None, delta4h_max=None
+)
+
+
+def entry_filter_reasons(row, bounds):
+    """Only the current scanner row; inclusive minima, exclusive maxima.
+
+    Unavailable values fail closed only when their dimension is constrained.
+    Reasons may overlap: one blocked opportunity can fail both dimensions.
+    """
+    reasons = []
+    for dimension, raw, label in (
+        ("score", row.get("total_score"), "SCORE"),
+        ("delta4h", row.get("momentum", {}).get("delta_4h"), "DELTA4H"),
+    ):
+        lo, hi = bounds.get(dimension + "_min"), bounds.get(dimension + "_max")
+        if lo is None and hi is None:
+            continue
+        try:
+            value = D(raw) if raw is not None else None
+        except (ValueError, TypeError, DecimalException):
+            value = None
+        if value is None:
+            reasons.append(label + "_UNAVAILABLE")
+        else:
+            if lo is not None and value < D(lo):
+                reasons.append(label + "_BELOW_MIN")
+            if hi is not None and value >= D(hi):
+                reasons.append(label + "_ABOVE_MAX")
+    return reasons
 
 
 def exit_choices():

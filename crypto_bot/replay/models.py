@@ -150,10 +150,11 @@ class ReplayStore:
                           COALESCE(json_extract(data,'$.reasons'),
                                    json_extract(data,'$.decision.reasons')) reasons,
                           json_extract(data,'$.reason') reason,
-                          json_extract(data,'$.btc_regime_state') btc_regime_state
+                          json_extract(data,'$.btc_regime_state') btc_regime_state,
+                          json_extract(data,'$.filter_reasons') filter_reasons
                    FROM replay_audit_events WHERE run_id=? AND variant=? AND
                    (json_extract(data,'$.event') IN
-                        ('ENTRY_FILL','EXIT_FILL','NO_FILL','RISK_REJECTED','BTC_REGIME_ENTRY_BLOCK') OR
+                        ('ENTRY_FILL','EXIT_FILL','NO_FILL','RISK_REJECTED','BTC_REGIME_ENTRY_BLOCK','RESEARCH_ENTRY_FILTER_BLOCK') OR
                     (json_extract(data,'$.event')='RISK_DECISION' AND
                      json_extract(data,'$.decision.approved')=0)) ORDER BY id""",
                 (run_id, variant),
@@ -161,6 +162,8 @@ class ReplayStore:
             events = []
             for row in rows:
                 event = dict(row)
+                if event["filter_reasons"]:
+                    event["filter_reasons"] = json.loads(event["filter_reasons"])
                 if event["reasons"]:
                     event["reasons"] = json.loads(event["reasons"])
                 events.append(event)

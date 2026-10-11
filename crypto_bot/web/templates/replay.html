@@ -25,6 +25,9 @@
 </form></section>
 <template id="replay-variant-template"><section class="replay-variant"><h3>ENTRY / EXIT / RISK</h3><label>Variant name <input data-key="name" value="Baseline" maxlength="80"></label><label>Entry Strategy <select data-key="strategy">{% for name in strategies %}<option>{{ name }}</option>{% endfor %}</select></label>
 <div class="cards"><section><h3>ENTRY STRATEGY</h3><label>BTC regime gate (replay research only) <select data-key="btc_regime_entry_gate"><option>OFF</option><option>BULLISH_ONLY</option></select></label>
+<fieldset><legend>Research entry filter — blank = unrestricted</legend>
+{% for key,label in [('score_min','Score ≥'),('score_max','Score &lt;'),('delta4h_min','Δ4h ≥'),('delta4h_max','Δ4h &lt;')] %}<label>{{ label|safe }} <input type="number" step="any" data-group="entry_filter" data-key="{{ key }}"></label>{% endfor %}
+<p>BUY only. Inclusive minimum, exclusive maximum. Missing constrained values block entry.</p></fieldset>
 {% for key,label,value,step in [('min_score','Min score',70,1),('min_delta','Min score delta',0,1),('min_rsi','Min RSI',40,1),('max_rsi','Max RSI',70,1),('min_relative_volume','Min relative volume',1,0.1),('stop_atr_multiplier','Original stop ATR multiplier',2,0.1),('exit_score','Baseline exit score',45,1)] %}<label>{{ label }} <input type="number" data-group="strategy_parameters" data-key="{{ key }}" value="{{ value }}" step="any"></label>{% endfor %}
 <label>Delta window <select data-group="strategy_parameters" data-key="delta_window" data-type="integer"><option>1</option><option selected>4</option><option>24</option></select></label>
 <label><input type="checkbox" data-group="strategy_parameters" data-key="require_delta" checked> Require score delta history</label><label><input type="checkbox" data-group="strategy_parameters" data-key="require_watch" checked> Require algorithm watch</label>

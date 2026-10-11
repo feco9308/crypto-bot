@@ -11,7 +11,7 @@ from pathlib import Path
 from crypto_bot.config.settings import Settings
 from crypto_bot.replay.clock import ms, utc
 from crypto_bot.replay.registry import EXITS, STRATEGIES
-from crypto_bot.replay.research import GATES, RESEARCH_EXITS
+from crypto_bot.replay.research import FILTER_DEFAULTS, GATES, RESEARCH_EXITS
 from crypto_bot.replay.stale import POLICIES, STRICT
 from crypto_bot.replay.symbols import valid_symbol
 from crypto_bot.trading.config import PaperSettings
@@ -54,6 +54,7 @@ VARIANT_FIELDS = (
     "exit_parameters",
     "risk_parameters",
     "btc_regime_entry_gate",
+    "entry_filter",
 )
 
 
@@ -113,7 +114,13 @@ def input_config(snapshot):
     }
     result["variants"] = [
         {
-            k: copy.deepcopy(v.get(k, "OFF") if k == "btc_regime_entry_gate" else v[k])
+            k: copy.deepcopy(
+                v.get(k, "OFF")
+                if k == "btc_regime_entry_gate"
+                else v.get(k, FILTER_DEFAULTS)
+                if k == "entry_filter"
+                else v[k]
+            )
             for k in VARIANT_FIELDS
         }
         for v in snapshot["variants"]
@@ -157,6 +164,24 @@ def variant(value, index=0):
     gate = value.get("btc_regime_entry_gate", "OFF")
     if gate not in GATES:
         invalid(f"{path}.btc_regime_entry_gate", "Must be OFF or BULLISH_ONLY")
+    bounds = value.get("entry_filter", {})
+    object_fields(bounds, FILTER_DEFAULTS, f"{path}.entry_filter")
+    bounds = {
+        k: at_field(f"{path}.entry_filter.{k}", lambda v=v: str(D(v)))
+        if v is not None
+        else None
+        for k, v in (FILTER_DEFAULTS | bounds).items()
+    }
+    for dimension in ("score", "delta4h"):
+        lo, hi = bounds[dimension + "_min"], bounds[dimension + "_max"]
+        if lo is not None and hi is not None and D(lo) >= D(hi):
+            invalid(
+                f"{path}.entry_filter.{dimension}_max",
+                "Exclusive maximum must exceed minimum",
+            )
+    for k, v in bounds.items():
+        if k.startswith("score") and v is not None and not 0 <= D(v) <= 100:
+            invalid(f"{path}.entry_filter.{k}", "Score bound must be between 0 and 100")
     errors = []
     try:
         definition = at_field(
@@ -253,6 +278,7 @@ def variant(value, index=0):
     return dict(
         name=name,
         btc_regime_entry_gate=gate,
+        entry_filter=bounds,
         strategy=definition.name,
         strategy_version=definition.version,
         strategy_parameters={k: snapshot[k] for k in definition.parameters},
