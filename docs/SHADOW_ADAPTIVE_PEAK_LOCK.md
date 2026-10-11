@@ -1,7 +1,9 @@
 # Adaptive peak lock v1 — Shadow Research only
 
-`adaptive_peak_lock_v1` is available only on `/replay/shadow-exit`.
-It is absent from the normal replay exit registry/API and production trading.
+`adaptive_peak_lock_v1` was introduced on `/replay/shadow-exit`.
+It is absent from the production/paper exit registry. A later research extension
+also makes the same stop model available to normal portfolio Replay Research;
+see [REPLAY_BTC_REGIME_GATE.md](REPLAY_BTC_REGIME_GATE.md).
 No tunable parameters: `exit_parameters={}`. EXPLORATION, NOT STATISTICALLY
 VALIDATED; no policy promotion or optimizer.
 
