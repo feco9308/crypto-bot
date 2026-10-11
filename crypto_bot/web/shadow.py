@@ -4,8 +4,7 @@ import json
 
 from flask import Response, abort, jsonify, render_template
 
-from crypto_bot.replay.registry import EXITS
-from crypto_bot.replay.shadow_config import validate
+from crypto_bot.replay.shadow_config import SHADOW_EXITS, validate
 from crypto_bot.replay.shadow_metrics import export
 from crypto_bot.replay.shadow_store import ShadowStore
 
@@ -28,7 +27,7 @@ def register_shadow(app, replay_store, csrf, json_body):
             "shadow.html",
             choices=source.compare_options(),
             jobs=db.jobs(),
-            exits=EXITS.items,
+            exits=SHADOW_EXITS,
         )
 
     @app.post("/api/replay/shadow/config/validate")

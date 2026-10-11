@@ -163,3 +163,5 @@ production promotion decision.
 
 The completed annual run and verification are recorded in
 [SHADOW_EXIT_VALIDATION.md](SHADOW_EXIT_VALIDATION.md).
+
+Shadow-only extension: [Adaptive peak lock v1](SHADOW_ADAPTIVE_PEAK_LOCK.md).

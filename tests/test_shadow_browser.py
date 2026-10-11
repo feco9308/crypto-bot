@@ -8,6 +8,7 @@ from test_replay_integration import Stops, web_case  # noqa: F401
 from test_shadow_exit import completed_source
 from werkzeug.serving import make_server
 
+from crypto_bot.replay.shadow_adaptive import NAME
 from crypto_bot.replay.shadow_engine import ShadowEngine
 from crypto_bot.replay.shadow_store import ShadowStore
 
@@ -32,11 +33,8 @@ def test_shadow_browser_validation_explicit_start_and_matched_results(request, w
                 page.goto(base + "/replay/shadow-exit")
                 assert page.locator(".shadow-exit-policy").count() == 4
                 page.locator("#shadow-add").click()
-                page.locator(".shadow-exit-policy").last.select_option("profit_lock")
-                assert (
-                    '"lock_pct"'
-                    in page.locator(".shadow-exit-params").last.input_value()
-                )
+                page.locator(".shadow-exit-policy").last.select_option(NAME)
+                assert page.locator(".shadow-exit-params").last.input_value() == "{}"
                 page.locator("#shadow-validate").click()
                 playwright.expect(page.locator("#shadow-status")).to_contain_text(
                     "no job started"
@@ -59,6 +57,9 @@ def test_shadow_browser_validation_explicit_start_and_matched_results(request, w
                 page.reload()
                 playwright.expect(page.locator("#shadow-summary tr")).to_have_count(5)
                 playwright.expect(page.locator("#shadow-pairwise tr")).to_have_count(10)
+                playwright.expect(
+                    page.locator("#shadow-adaptive-cohorts tr")
+                ).to_have_count(3)
                 playwright.expect(
                     page.locator("#shadow-anchor-summary")
                 ).to_contain_text("canonical FILLED BUYs")

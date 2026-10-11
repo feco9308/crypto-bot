@@ -3,6 +3,10 @@
 import re
 
 from crypto_bot.replay.config import at_field, invalid, object_fields, variant
+from crypto_bot.replay.registry import EXITS
+from crypto_bot.replay.shadow_adaptive import NAME
+
+SHADOW_EXITS = EXITS.items | {NAME: {}}
 
 
 def validate(value, source):
@@ -31,12 +35,17 @@ def validate(value, source):
         if ident in ids:
             invalid(path + ".id", "Policy IDs must be unique")
         ids.add(ident)
-        # The normal replay registry/schema remains the sole parameter validator.
+        # Existing policies still use the unchanged normal replay schema.
+        adaptive = p.get("exit_policy") == NAME
+        if adaptive:
+            object_fields(p.get("exit_parameters", {}), (), path + ".exit_parameters")
         normalized = variant(
             dict(
                 name=p.get("name", ident),
-                exit_policy=p.get("exit_policy", "baseline_v1"),
-                exit_parameters=p.get("exit_parameters", {}),
+                exit_policy="baseline_v1"
+                if adaptive
+                else p.get("exit_policy", "baseline_v1"),
+                exit_parameters={} if adaptive else p.get("exit_parameters", {}),
             ),
             i,
         )
@@ -44,7 +53,7 @@ def validate(value, source):
             dict(
                 id=ident,
                 name=normalized["name"],
-                exit_policy=normalized["exit_policy"],
+                exit_policy=NAME if adaptive else normalized["exit_policy"],
                 exit_parameters=normalized["exit_parameters"],
             )
         )

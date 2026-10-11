@@ -11,6 +11,7 @@ from crypto_bot.replay.clock import at, ms
 from crypto_bot.replay.config import config_hash, settings_for
 from crypto_bot.replay.exits import levels, observe, policy
 from crypto_bot.replay.registry import SCORES, STRATEGIES
+from crypto_bot.replay.shadow_adaptive import NAME, AdaptivePeakLock
 from crypto_bot.replay.shadow_metrics import analysis
 from crypto_bot.replay.universe import CandleHistory, HistoricalUniverse
 from crypto_bot.trading.domain import D, MarketContext, q
@@ -32,7 +33,15 @@ class ShadowPosition:
         self.result = None
         price = D(entry["entry_fill_price"])
         stop = D(entry["original_stop_price"])
-        self.model = policy(definition["exit_policy"], definition["exit_parameters"])
+        self.adaptive = (
+            AdaptivePeakLock(entry, settings)
+            if definition["exit_policy"] == NAME
+            else None
+        )
+        self.model = policy(
+            "baseline_v1" if self.adaptive else definition["exit_policy"],
+            definition["exit_parameters"],
+        )
         tp, _ = levels(self.model, price, price - stop)
         self.p = SimpleNamespace(
             id=entry["shadow_entry_id"],
@@ -120,7 +129,11 @@ class ShadowPosition:
             raise ValueError("Shadow requires a completed post-entry candle")
         self.fresh(True, now)
         self.mark(candle["close"], now)
-        hit, ambiguous, visited = observe(candle, self.p, self.model, conservative)
+        hit, ambiguous, visited = (
+            self.adaptive.observe(candle, self.p, now, conservative)
+            if self.adaptive
+            else observe(candle, self.p, self.model, conservative)
+        )
         self.ambiguous |= ambiguous
         self.mfe = max(self.mfe, *visited)
         self.mae = min(self.mae, *visited)
@@ -138,44 +151,48 @@ class ShadowPosition:
             if value["stale"]
             else "OPEN"
         )
-        return dict(
-            shadow_entry_id=self.entry["shadow_entry_id"],
-            policy_id=self.definition["id"],
-            policy=self.definition["exit_policy"],
-            policy_parameters=self.definition["exit_parameters"],
-            symbol=self.entry["symbol"],
-            status=status,
-            shadow_status="SHADOW_OPEN_STALE" if status == "OPEN_STALE" else status,
-            position_status=self.p.status,
-            data_complete=self.data_complete,
-            comparison_eligible=status == "CLOSED" and self.data_complete,
-            entry_time=self.entry["entry_time"],
-            entry_fill_price=self.entry["entry_fill_price"],
-            original_stop=self.entry["original_stop_price"],
-            quantity=self.entry["quantity"],
-            canonical_notional=self.entry["notional"],
-            canonical_risk_amount=self.entry["risk_amount"],
-            entry_atr=self.entry["atr"],
-            entry_fee=self.entry["entry_fee"],
-            entry_slippage=self.entry["entry_slippage"],
-            exit_time=None,
-            exit_price=None,
-            exit_reason=None,
-            return_pct=None,
-            realized_pnl=None,
-            normalized_pnl_per_1000=None,
-            r_multiple=None,
-            duration_seconds=(now - ms(self.entry["entry_time"])) / 1000,
-            mfe_pct=max(0, float((self.mfe / self.p.entry_price - 1) * 100)),
-            mae_pct=min(0, float((self.mae / self.p.entry_price - 1) * 100)),
-            intrabar_ambiguity=self.ambiguous,
-            first_stale_time=value["first_stale_time"],
-            last_valid_mark_time=value["last_valid_mark_time"],
-            last_valid_mark_price=value["last_valid_mark_price"],
-            stale_duration_seconds=stale.duration(value, now),
-            resumed_after_stale=value["resumed_after_stale"],
-            events=self.events,
-        ) | (self.result or {})
+        return (
+            dict(
+                shadow_entry_id=self.entry["shadow_entry_id"],
+                policy_id=self.definition["id"],
+                policy=self.definition["exit_policy"],
+                policy_parameters=self.definition["exit_parameters"],
+                symbol=self.entry["symbol"],
+                status=status,
+                shadow_status="SHADOW_OPEN_STALE" if status == "OPEN_STALE" else status,
+                position_status=self.p.status,
+                data_complete=self.data_complete,
+                comparison_eligible=status == "CLOSED" and self.data_complete,
+                entry_time=self.entry["entry_time"],
+                entry_fill_price=self.entry["entry_fill_price"],
+                original_stop=self.entry["original_stop_price"],
+                quantity=self.entry["quantity"],
+                canonical_notional=self.entry["notional"],
+                canonical_risk_amount=self.entry["risk_amount"],
+                entry_atr=self.entry["atr"],
+                entry_fee=self.entry["entry_fee"],
+                entry_slippage=self.entry["entry_slippage"],
+                exit_time=None,
+                exit_price=None,
+                exit_reason=None,
+                return_pct=None,
+                realized_pnl=None,
+                normalized_pnl_per_1000=None,
+                r_multiple=None,
+                duration_seconds=(now - ms(self.entry["entry_time"])) / 1000,
+                mfe_pct=max(0, float((self.mfe / self.p.entry_price - 1) * 100)),
+                mae_pct=min(0, float((self.mae / self.p.entry_price - 1) * 100)),
+                intrabar_ambiguity=self.ambiguous,
+                first_stale_time=value["first_stale_time"],
+                last_valid_mark_time=value["last_valid_mark_time"],
+                last_valid_mark_price=value["last_valid_mark_price"],
+                stale_duration_seconds=stale.duration(value, now),
+                resumed_after_stale=value["resumed_after_stale"],
+                events=self.events,
+            )
+            | (self.result or {})
+            | (self.adaptive.audit(self.result) if self.adaptive else {})
+        )
 
 
 class ShadowEngine:
@@ -273,7 +290,12 @@ class ShadowEngine:
                             p.fresh(current is not None, minute)
                             if current:
                                 p.mark(current["open"], minute)
-                        if current and minute > ms(entry["entry_time"]):
+                        strategy_active = [p for p in active if not p.adaptive]
+                        if (
+                            current
+                            and strategy_active
+                            and minute > ms(entry["entry_time"])
+                        ):
                             signal = self.strategy_signal(
                                 entry["symbol"],
                                 minute,
@@ -283,7 +305,7 @@ class ShadowEngine:
                                 anchor["score_version"],
                             )
                             if signal is None:
-                                for p in active:
+                                for p in strategy_active:
                                     p.data_complete = False
                                     if not p.strategy_data_missing:
                                         p.event(
@@ -291,7 +313,7 @@ class ShadowEngine:
                                         )
                                         p.strategy_data_missing = True
                             if signal is not None and signal.action == "SELL":
-                                for p in active:
+                                for p in strategy_active:
                                     p.close(
                                         current["open"],
                                         minute,

@@ -5,6 +5,8 @@ from itertools import combinations
 from statistics import mean, median
 
 from crypto_bot.replay.metrics import bucket
+from crypto_bot.replay.shadow_adaptive import NAME
+from crypto_bot.trading.domain import D
 
 TIE_TOLERANCE_PCT = 0.000001
 
@@ -23,8 +25,11 @@ def outcome(rows):
     closed = [r for r in rows if r["comparison_eligible"]]
     returns = [r["return_pct"] for r in closed]
     rs = [r["r_multiple"] for r in closed if r["r_multiple"] is not None]
-    positive = sum(max(r, 0) for r in returns)
-    negative = -sum(min(r, 0) for r in returns)
+    tolerance = (
+        TIE_TOLERANCE_PCT if rows and all(r["policy"] == NAME for r in rows) else 0
+    )
+    positive = sum(r for r in returns if r > tolerance)
+    negative = -sum(r for r in returns if r < -tolerance)
     return dict(
         matched_entries=len(rows),
         comparable_closed_count=len(closed),
@@ -32,7 +37,10 @@ def outcome(rows):
         open_count=sum(r["position_status"] == "OPEN" for r in rows),
         stale_count=sum(r["status"] == "OPEN_STALE" for r in rows),
         historical_stale_count=sum(bool(r["first_stale_time"]) for r in rows),
-        win_rate=sum(r > 0 for r in returns) / len(returns) * 100 if returns else None,
+        return_tie_tolerance_pct=tolerance,
+        win_rate=sum(r > tolerance for r in returns) / len(returns) * 100
+        if returns
+        else None,
         mean_return_pct=mean(returns) if returns else None,
         median_return_pct=median(returns) if returns else None,
         expectancy_r=mean(rs) if rs else None,
@@ -47,6 +55,17 @@ def outcome(rows):
         ambiguous_count=sum(r["intrabar_ambiguity"] for r in closed),
         sample_label=sample(len(closed)),
         statistically_validated=False,
+        mean_mfe_pct=mean([r["mfe_pct"] for r in closed]) if closed else None,
+        mean_giveback_pct=mean(
+            [r["giveback_pct"] for r in closed if r.get("giveback_pct") is not None]
+        )
+        if any(r.get("giveback_pct") is not None for r in closed)
+        else None,
+        mean_giveback_r=mean(
+            [r["giveback_r"] for r in closed if r.get("giveback_r") is not None]
+        )
+        if any(r.get("giveback_r") is not None for r in closed)
+        else None,
     )
 
 
@@ -105,8 +124,79 @@ def compare(entries, rows):
     )
 
 
+def adaptive_audit(rows):
+    adaptive = [r for r in rows if r["policy"] == NAME]
+    baseline = {r["shadow_entry_id"]: r for r in rows if r["policy"] == "baseline_v1"}
+    cohorts = {}
+    for threshold in (0.75, 1.0, 2.0):
+        reached = [r for r in adaptive if r["highest_r"] >= threshold]
+        complete = [r for r in reached if r["comparison_eligible"]]
+        prior_winners = []
+        for b in baseline.values():
+            risk = D(b["canonical_risk_amount"])
+            peak_r = (
+                D(str(b["mfe_pct"]))
+                / 100
+                * D(b["entry_fill_price"])
+                * D(b["quantity"])
+                / risk
+            )
+            if (
+                b["comparison_eligible"]
+                and peak_r >= D(str(threshold))
+                and b["return_pct"] < -TIE_TOLERANCE_PCT
+            ):
+                prior_winners.append(b["shadow_entry_id"])
+        rescued = [
+            r
+            for r in adaptive
+            if r["shadow_entry_id"] in prior_winners
+            and r["comparison_eligible"]
+            and r["return_pct"] > TIE_TOLERANCE_PCT
+        ]
+        cohorts[str(threshold)] = dict(
+            reached_count=len(reached),
+            comparable_closed_count=len(complete),
+            profitable_close_count=sum(
+                r["return_pct"] > TIE_TOLERANCE_PCT for r in complete
+            ),
+            losing_close_count=sum(
+                r["return_pct"] < -TIE_TOLERANCE_PCT for r in complete
+            ),
+            breakeven_close_count=sum(
+                abs(r["return_pct"]) <= TIE_TOLERANCE_PCT for r in complete
+            ),
+            incomplete_count=len(reached) - len(complete),
+            gave_back_profit_count=sum(r["giveback_pct"] > 0 for r in complete),
+            mean_giveback_pct=mean([r["giveback_pct"] for r in complete])
+            if complete
+            else None,
+            mean_giveback_r=mean([r["giveback_r"] for r in complete])
+            if complete
+            else None,
+            baseline_reached_then_lost_count=len(prior_winners),
+            adaptive_saved_baseline_loss_count=len(rescued),
+            adaptive_avoided_baseline_loss_count=sum(
+                r["shadow_entry_id"] in prior_winners
+                and r["comparison_eligible"]
+                and r["return_pct"] >= -TIE_TOLERANCE_PCT
+                for r in adaptive
+            ),
+        )
+    return dict(
+        policy=NAME,
+        return_tie_tolerance_pct=TIE_TOLERANCE_PCT,
+        cohorts=cohorts,
+        threshold_basis="GROSS_PRICE_GAIN_TIMES_CANONICAL_QUANTITY_PER_CANONICAL_RISK",
+        giveback_basis="NET_LIQUIDATABLE_PEAK_PNL_MINUS_NET_REALIZED_PNL",
+        baseline_rescue_basis="BASELINE_COMPLETE_CLOSED_MFE_REACHED_THRESHOLD_THEN_NET_LOSS; ADAPTIVE_COMPLETE_CLOSED_NET_PROFIT_ON_SAME_ENTRY",
+    )
+
+
 def analysis(entries, rows):
     result = compare(entries, rows)
+    if any(r["policy"] == NAME for r in rows):
+        result["adaptive_peak_lock_analysis"] = adaptive_audit(rows)
     specs = dict(
         symbol=lambda e: e["symbol"],
         asset_group=lambda e: e["asset_group"],
@@ -152,6 +242,11 @@ def analysis(entries, rows):
             breakdowns[name][key] = compare(
                 group, [r for r in rows if r["shadow_entry_id"] in ids]
             )
+            group_rows = [r for r in rows if r["shadow_entry_id"] in ids]
+            if any(r["policy"] == NAME for r in group_rows):
+                breakdowns[name][key]["adaptive_peak_lock_analysis"] = adaptive_audit(
+                    group_rows
+                )
     result.update(
         breakdowns=breakdowns,
         incomplete_outcome_count=sum(not r["comparison_eligible"] for r in rows),
