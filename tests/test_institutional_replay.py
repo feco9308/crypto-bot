@@ -400,13 +400,27 @@ def test_mixed_run_preserves_control_core_results_and_btc_context(tmp_path):
     store = ReplayStore(tmp_path / "replay.db")
     first = store.create(base)
     second = store.create(mixed)
+
+    class Recording(Synthetic):
+        def __init__(self):
+            super().__init__()
+            self.hourly_symbols = []
+
+        def hourly(self, symbol, start, end):
+            self.hourly_symbols.append(symbol)
+            return super().hourly(symbol, start, end)
+
     providers = []
     for run in (first, second):
-        p = Synthetic()
+        p = Recording()
         providers.append(p)
         ReplayEngine(store, p).run(run)
     a, ac = store.data(first, 0)
     b, bc = store.data(second, 0)
+    assert a
+    assert "BTCUSDT" not in providers[0].hourly_symbols
+    assert "BTCUSDT" in providers[1].hourly_symbols
+    assert all(t["research_btc_regime"] == "BULL" for t in b)
     assert ac == bc
     assert len(a) == len(b)
     for old, new in zip(a, b):
