@@ -568,3 +568,21 @@ Replay-only BTC regime gate: [research configuration and method](docs/REPLAY_BTC
 The [2024 validation report](docs/REPLAY_BTC_REGIME_VALIDATION.md) records the independent A/B/C/D portfolio runs, rejection breakdowns and export paths.
 
 Replay-only score / delta4h entry bounds: [configuration and audit semantics](docs/REPLAY_ENTRY_FILTER.md), [2024 control-parity and portfolio validation](docs/REPLAY_ENTRY_FILTER_VALIDATION.md). Optional minima are inclusive and maxima exclusive; unrestricted defaults preserve previous runs. No production promotion.
+
+### Institutional-style Replay Research
+
+`institutional_style_v1` is an optional, long-only Replay Lab research strategy:
+closed UTC 1h/4h/1D EMA trends, a 4h/1D BTC regime, replay-local risk multipliers,
+and a past-return correlation guard. Existing production strategy, risk, scanner
+and paper behavior are unchanged. NO LIVE TRADING IMPLEMENTED.
+
+The default strategy stays `watchlist_reference_v1`. The existing research-only
+`adaptive_peak_lock_v1` exit now accepts explicit activation/trailing parameters;
+its defaults preserve the existing exit behavior. Daily EMA200 requires additional
+historical warmup. Missing higher-timeframe data blocks entries.
+
+See [implementation and validation](docs/INSTITUTIONAL_STYLE_REPLAY.md) and the
+[ready-to-import 2024 A/B/C/D configuration](docs/replay/institutional-style-v1-2024.config.json).
+Import/VALIDATE does not start a run; START REPLAY remains explicit. This change
+requires review before deployment; it does not automatically deploy or launch
+research, and it does not tune2024/2025/2026 parameters.
