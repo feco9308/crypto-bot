@@ -3,12 +3,13 @@
 from decimal import DecimalException
 
 from crypto_bot.replay.clock import ms
+from crypto_bot.replay.institutional_exit import DEFAULTS, ParameterizedPeakLock, custom
 from crypto_bot.replay.registry import EXITS
 from crypto_bot.replay.shadow_adaptive import NAME, AdaptivePeakLock, PeakState
 from crypto_bot.trading.domain import D
 
 GATES = ("OFF", "BULLISH_ONLY")
-RESEARCH_EXITS = {NAME: {}}
+RESEARCH_EXITS = {NAME: DEFAULTS}
 FILTER_DEFAULTS = dict(
     score_min=None, score_max=None, delta4h_min=None, delta4h_max=None
 )
@@ -63,17 +64,20 @@ def gate_state(row, now):
 
 
 def adaptive(position, settings):
-    model = AdaptivePeakLock(
-        dict(
-            entry_fill_price=str(position.entry_price),
-            original_stop_price=str(position.original_stop),
-            quantity=str(position.quantity),
-            risk_amount=position.entry_data["risk_amount"],
-            atr=position.entry_data["atr"],
-            notional=str(position.notional),
-            entry_fee=str(position.entry_fee),
-        ),
-        settings,
+    entry = dict(
+        entry_fill_price=str(position.entry_price),
+        original_stop_price=str(position.original_stop),
+        quantity=str(position.quantity),
+        risk_amount=position.entry_data["risk_amount"],
+        atr=position.entry_data["atr"],
+        notional=str(position.notional),
+        entry_fee=str(position.entry_fee),
+    )
+    parameters = position.entry_data.get("adaptive_exit_parameters", {})
+    model = (
+        ParameterizedPeakLock(entry, settings, parameters)
+        if custom(parameters)
+        else AdaptivePeakLock(entry, settings)
     )
     state = position.entry_data.get("adaptive_peak_state")
     if state:

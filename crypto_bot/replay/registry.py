@@ -1,6 +1,15 @@
 from dataclasses import dataclass
 
+from crypto_bot.replay.institutional import (
+    NAME as INSTITUTIONAL,
+)
+from crypto_bot.replay.institutional import (
+    PARAMETERS,
+    InstitutionalSettings,
+    InstitutionalStrategy,
+)
 from crypto_bot.scanner.scoring import score
+from crypto_bot.trading.config import PaperSettings
 from crypto_bot.trading.strategy import ReferenceStrategy
 
 
@@ -10,6 +19,7 @@ class StrategyDefinition:
     version: str
     factory: object
     parameters: tuple
+    settings_type: object = PaperSettings
 
 
 class Registry:
@@ -49,6 +59,16 @@ STRATEGIES.register(
             "exit_score",
             "exit_on_bearish_ema",
         ),
+    ),
+)
+STRATEGIES.register(
+    INSTITUTIONAL,
+    StrategyDefinition(
+        INSTITUTIONAL,
+        "1.0.0",
+        InstitutionalStrategy,
+        PARAMETERS,
+        InstitutionalSettings,
     ),
 )
 SCORES = Registry()

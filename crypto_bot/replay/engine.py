@@ -3,7 +3,7 @@
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -14,6 +14,10 @@ from crypto_bot.replay.clock import ReplayClock, at, ms
 from crypto_bot.replay.config import settings_for
 from crypto_bot.replay.execution import ReplayExecution
 from crypto_bot.replay.exits import levels, observe, policy
+from crypto_bot.replay.institutional import NAME as INSTITUTIONAL
+from crypto_bot.replay.institutional import InstitutionalContext
+from crypto_bot.replay.institutional_exit import custom as custom_peak_lock
+from crypto_bot.replay.institutional_metrics import research_summary, trade_observations
 from crypto_bot.replay.metrics import summary
 from crypto_bot.replay.portfolio import MemoryLedger
 from crypto_bot.replay.registry import SCORES, STRATEGIES
@@ -59,6 +63,10 @@ class Variant:
         self.total_slippage = ZERO
         self.blocked_reasons = defaultdict(int)
         self.pending = []
+        self.research_context = None
+        self.research_reporting = config["strategy"] == INSTITUTIONAL
+        self.reporting_btc_settings = None
+        self.institutional_rejections = defaultdict(int)
 
     def block_entry(self, signal, reasons):
         if signal.action == "BUY":
@@ -100,6 +108,15 @@ class Variant:
             f = row["features"]
             s = row["symbol"]
             delta = row["momentum"].get(f"delta_{self.settings.delta_window}h")
+            if (
+                self.config["strategy"] == INSTITUTIONAL
+                and self.research_context is not None
+            ):
+                audit = self.research_context.context(
+                    s, now, self.settings, self.ledger.portfolio.positions()
+                )
+                f = f | {"institutional": audit}
+                row = row | {"institutional_context": audit}
             context = MarketContext(
                 now // 3600000,
                 s,
@@ -124,6 +141,20 @@ class Variant:
         existing = {p.symbol for p in self.ledger.portfolio.positions()}
         for context, row in self.contexts(rows, watch, now):
             signal = self.strategy.evaluate(context, context.symbol in existing)
+            if (
+                self.config["strategy"] == INSTITUTIONAL
+                and signal.action == "HOLD"
+                and context.symbol not in existing
+            ):
+                for reason in signal.reasons:
+                    self.institutional_rejections[reason] += 1
+                self.event(
+                    "INSTITUTIONAL_ENTRY_REJECTED",
+                    now,
+                    symbol=context.symbol,
+                    reasons=list(signal.reasons),
+                    context=row.get("institutional_context", {}),
+                )
             if (
                 signal.action == "BUY"
                 and self.config.get("btc_regime_entry_gate", "OFF") == "BULLISH_ONLY"
@@ -226,7 +257,48 @@ class Variant:
                 self.block_entry(signal, self.events[-1]["reasons"])
                 continue
             decision_view = self.decision_view()
-            decision = self.risk.evaluate(signal, decision_view, True, entry_price=ref)
+            risk = self.risk
+            if self.config["strategy"] == INSTITUTIONAL and signal.action == "BUY":
+                if self.research_context is None:
+                    self.block_entry(signal, "INSTITUTIONAL_CONTEXT_UNAVAILABLE")
+                    self.event(
+                        "RISK_REJECTED",
+                        now,
+                        symbol=signal.symbol,
+                        reasons=["INSTITUTIONAL_CONTEXT_UNAVAILABLE"],
+                    )
+                    continue
+                audit = self.research_context.context(
+                    signal.symbol, now, self.settings, pfolio.positions()
+                )
+                row = row | {"institutional_context": audit}
+                correlation = audit["correlation"]
+                multiplier = D(audit["btc"]["risk_multiplier"])
+                if correlation["blocked"] or multiplier <= 0:
+                    reason = (
+                        "CORRELATION_LIMIT"
+                        if correlation["blocked"]
+                        else "BTC_BEAR_REGIME"
+                        if audit["btc"]["regime"] == "BEAR"
+                        else "BTC_REGIME_UNAVAILABLE"
+                    )
+                    self.block_entry(signal, reason)
+                    self.event(
+                        "RISK_REJECTED",
+                        now,
+                        symbol=signal.symbol,
+                        reasons=[reason],
+                        context=audit,
+                    )
+                    continue
+                risk = RiskManager(
+                    replace(
+                        self.settings,
+                        risk_per_trade_pct=self.settings.risk_per_trade_pct
+                        * multiplier,
+                    )
+                )
+            decision = risk.evaluate(signal, decision_view, True, entry_price=ref)
             self.event(
                 "STRATEGY_SIGNAL",
                 now,
@@ -306,6 +378,28 @@ class Variant:
                     ),
                     intrabar_ambiguity=False,
                 )
+                if self.adaptive_exit and custom_peak_lock(
+                    self.config.get("exit_parameters", {})
+                ):
+                    position.entry_data["adaptive_exit_parameters"] = dict(
+                        self.config["exit_parameters"]
+                    )
+                if self.config["strategy"] == INSTITUTIONAL:
+                    position.entry_data["institutional_context"] = row[
+                        "institutional_context"
+                    ]
+                    position.entry_data["institutional_btc_regime"] = row[
+                        "institutional_context"
+                    ]["btc"]["regime"]
+                    position.entry_data["risk_multiplier"] = row[
+                        "institutional_context"
+                    ]["btc"]["risk_multiplier"]
+                elif self.research_reporting and self.research_context is not None:
+                    position.entry_data["research_btc_regime"] = (
+                        self.research_context.btc(now, self.reporting_btc_settings)[
+                            "regime"
+                        ]
+                    )
                 self.mark({position.symbol: ref}, now)
                 prices[position.symbol] = ref
             else:
@@ -405,6 +499,8 @@ class Variant:
                 else None
             )
             adaptive_audit = adaptive(p, self.settings).audit(result)
+        if self.research_reporting:
+            adaptive_audit.update(trade_observations(p, self.settings, now))
         return (
             adaptive_audit
             | p.entry_data
@@ -474,6 +570,11 @@ class Variant:
 
     def checkpoint(self):
         return dict(
+            **(
+                {"institutional_rejections": dict(self.institutional_rejections)}
+                if self.config["strategy"] == INSTITUTIONAL
+                else {}
+            ),
             ledger=self.ledger.checkpoint(),
             next_order=self.execution.next_order,
             blocked=self.blocked,
@@ -501,22 +602,30 @@ class ReplayEngine:
         clock = ReplayClock(start - config["warmup_hours"] * 3600000)
         candidates = config["candidate_symbols"] or self.provider.catalog()
         candidates = [s for s in candidates if HistoricalUniverse.allowed(s, scanner)]
+        institutional = any(v["strategy"] == INSTITUTIONAL for v in config["variants"])
+        load_start = (
+            start
+            - max(config["warmup_hours"], config.get("context_warmup_hours", 0))
+            * 3600000
+        )
+        context_symbols = (
+            sorted(set(candidates) | {"BTCUSDT"}) if institutional else candidates
+        )
         cache_began = time.perf_counter()
         histories = {}
 
         def load(symbol):
             self.check()
-            return symbol, CandleHistory(
-                self.provider.hourly(symbol, clock.now_ms, end)
-            )
+            return symbol, CandleHistory(self.provider.hourly(symbol, load_start, end))
 
         # Bounded in-flight downloads; consume deterministically in catalog order.
         # Submit only a small batch, so futures cannot retain all archive objects.
         concurrency = getattr(self.provider, "parallelism", 1)
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
-            for offset in range(0, len(candidates), concurrency):
+            for offset in range(0, len(context_symbols), concurrency):
                 for i, (symbol, rows) in enumerate(
-                    pool.map(load, candidates[offset : offset + concurrency]), offset
+                    pool.map(load, context_symbols[offset : offset + concurrency]),
+                    offset,
                 ):
                     if rows:
                         histories[symbol] = rows
@@ -536,10 +645,21 @@ class ReplayEngine:
         if not histories:
             raise ValueError("No historical candles in selected research universe")
         universe = HistoricalUniverse(
-            histories, scanner, float(config["spread_approximation_pct"])
+            {s: histories[s] for s in candidates if s in histories},
+            scanner,
+            float(config["spread_approximation_pct"]),
         )
         stale_policy = config.get("stale_position_policy", stale.STRICT)
         variants = [Variant(v, start, stale_policy) for v in config["variants"]]
+        if institutional:
+            research_context = InstitutionalContext(histories)
+            reporting_settings = next(
+                v.settings for v in variants if v.config["strategy"] == INSTITUTIONAL
+            )
+            for v in variants:
+                v.research_context = research_context
+                v.research_reporting = True
+                v.reporting_btc_settings = reporting_settings
         history = defaultdict(list)
         checkpoint = self.store.checkpoint(run_id)
         cursor = start - 24 * 3600000
@@ -571,6 +691,9 @@ class ReplayEngine:
                     ]
                 )
                 v.total_slippage = D(state["total_slippage"])
+                v.institutional_rejections.update(
+                    state.get("institutional_rejections", {})
+                )
                 _, v.curve = self.store.data(run_id, i)
                 v.exposure_count = state["exposure_count"]
                 v.exposure_sum = state["exposure_sum"]
@@ -806,6 +929,14 @@ class ReplayEngine:
             # Read the persisted audit too, so pre-observability checkpoints resume
             # without discarding the already-counted rejection reasons.
             result.update(self.store.blocked_entry_details(run_id, i, v.blocked))
+            if institutional:
+                research_metrics, research_breakdowns = research_summary(trades)
+                result.update(research_metrics)
+                if v.config["strategy"] == INSTITUTIONAL:
+                    result["institutional_entry_rejections"] = dict(
+                        v.institutional_rejections
+                    )
+                breakdowns.update(research_breakdowns)
             results.append(dict(metrics=result, breakdowns=breakdowns))
         metadata = run["metadata"] | dict(
             stale_position_policy=stale_policy,

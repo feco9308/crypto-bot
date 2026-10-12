@@ -4,6 +4,10 @@ from collections import Counter
 
 # Exact existing RiskManager/replay strings. This mapping never gates a trade.
 CATEGORIES = {
+    'BTC_BEAR_REGIME': 'btc_bear_regime',
+    'BTC_REGIME_UNAVAILABLE': 'btc_regime_unavailable',
+    'CORRELATION_LIMIT': 'correlation_limit',
+    'INSTITUTIONAL_CONTEXT_UNAVAILABLE': 'institutional_context_unavailable',
     "BTC_REGIME_ENTRY_BLOCK": "btc_regime_entry_block",
     "RESEARCH_ENTRY_FILTER_BLOCK": "research_entry_filter_block",
     "daily loss limit reached": "daily_loss",

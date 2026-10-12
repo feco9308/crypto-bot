@@ -14,7 +14,6 @@ from crypto_bot.replay.registry import EXITS, STRATEGIES
 from crypto_bot.replay.research import FILTER_DEFAULTS, GATES, RESEARCH_EXITS
 from crypto_bot.replay.stale import POLICIES, STRICT
 from crypto_bot.replay.symbols import valid_symbol
-from crypto_bot.trading.config import PaperSettings
 from crypto_bot.trading.domain import D
 
 RISK_NAMES = (
@@ -222,7 +221,22 @@ def variant(value, index=0):
             invalid(f"{path}.exit_parameters.{key}", "Percentage must be below 100")
     if policy == "profit_lock" and D(params["lock_pct"]) >= D(params["activation_pct"]):
         invalid(f"{path}.exit_parameters.lock_pct", "Must be below activation_pct")
-    paper = PaperSettings()
+    if policy == "adaptive_peak_lock_v1":
+        if (
+            not D(params["activation_break_even_r"])
+            < D(params["activation_trailing_r"])
+            < D(params["tighten_trailing_r"])
+        ):
+            invalid(
+                f"{path}.exit_parameters.activation_trailing_r",
+                "Require break-even < trailing < tightening thresholds",
+            )
+        if D(params["tight_trail_atr_multiplier"]) > D(params["trail_atr_multiplier"]):
+            invalid(
+                f"{path}.exit_parameters.tight_trail_atr_multiplier",
+                "Must be <= trail_atr_multiplier",
+            )
+    paper = definition.settings_type()
     values, errors = {}, []
     for group, allowed in (
         ("risk_parameters", RISK_NAMES),
@@ -290,7 +304,9 @@ def variant(value, index=0):
 
 
 def settings_for(value):
-    default = PaperSettings()
+    default = STRATEGIES.get(
+        value.get("strategy", "watchlist_reference_v1")
+    ).settings_type()
     raw = value["paper_settings"]
     return replace(
         default, **converted(default, raw, [f.name for f in fields(default)])
@@ -386,6 +402,7 @@ def _validate(value):
     scanner_snapshot = scanner.public_dict()
     for k in ("database_url", "secret_key", "api_url"):
         scanner_snapshot.pop(k, None)
+    institutional = [v for v in variants if v["strategy"] == "institutional_style_v1"]
     return dict(
         schema_version=1,
         stale_position_policy=stale_policy,
@@ -394,6 +411,19 @@ def _validate(value):
         end=end.isoformat() + "Z",
         timeframe="1h",
         warmup_hours=524,
+        **(
+            {
+                "context_warmup_hours": max(
+                    max(
+                        (int(v["strategy_parameters"]["ema_slow_period"]) + 1) * 24,
+                        int(v["strategy_parameters"]["correlation_lookback_hours"]) + 1,
+                    )
+                    for v in institutional
+                )
+            }
+            if institutional
+            else {}
+        ),
         universe_size=top,
         universe_method="ROLLING_24H_QUOTE_VOLUME_APPROXIMATION",
         candidate_symbols=sorted(set(candidates)) if candidates else None,
