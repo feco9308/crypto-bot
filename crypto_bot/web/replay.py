@@ -93,6 +93,22 @@ def register_replay(app, production_database):
             runs=db.runs(),
             worker=worker,
             strategies=list(STRATEGIES.items),
+            strategy_specs={
+                name: {
+                    k: {
+                        "value": definition.settings_type().public_dict()[k],
+                        "kind": "boolean"
+                        if isinstance(getattr(definition.settings_type(), k), bool)
+                        else "integer"
+                        if isinstance(getattr(definition.settings_type(), k), int)
+                        else "text"
+                        if isinstance(getattr(definition.settings_type(), k), str)
+                        else "number",
+                    }
+                    for k in definition.parameters
+                }
+                for name, definition in STRATEGIES.items.items()
+            },
             exits=exit_choices(),
             presets=db.presets(),
         )

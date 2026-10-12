@@ -10,6 +10,26 @@
   const errorList = document.querySelector('#replay-config-errors');
   const mode = document.querySelector('#replay-mode');
   let configBusy = false;
+  const strategySpecs = JSON.parse(document.querySelector('#replay-strategy-data').dataset.definitions);
+
+  function strategyFields(node) {
+    const strategy = node.querySelector('[data-key=strategy]').value;
+    const box = node.querySelector('.replay-strategy-params');
+    box.replaceChildren();
+    for (const [key, spec] of Object.entries(strategySpecs[strategy])) {
+      const label = document.createElement('label');
+      label.textContent = key.replaceAll('_', ' ').replace(/^./, s => s.toUpperCase()) + ' ';
+      const input = document.createElement(key === 'delta_window' ? 'select' : 'input');
+      if (key === 'delta_window') {
+        [1,4,24].forEach(v => {const option=document.createElement('option');option.value=v;option.textContent=v;input.append(option);});
+      } else if (spec.kind === 'boolean') { input.type='checkbox';input.checked=spec.value; }
+      else {input.type=spec.kind === 'text' ? 'text' : 'number';input.step=spec.kind==='integer'?'1':'any';}
+      input.value=spec.value;
+      input.dataset.group='strategy_parameters';input.dataset.key=key;
+      if (spec.kind==='integer') input.dataset.type='integer';
+      label.append(input);box.append(label);
+    }
+  }
 
   function exitFields(node) {
     const select = node.querySelector('[data-key=exit_policy]');
@@ -40,6 +60,10 @@
     const node = template.content.firstElementChild.cloneNode(true);
     container.append(node);
     node.querySelector('[data-key=name]').value = saved?.name || `Variant ${container.children.length}`;
+    const strategy = node.querySelector('[data-key=strategy]');
+    if (saved) strategy.value = saved.strategy;
+    strategyFields(node);
+    strategy.addEventListener('change', () => strategyFields(node));
     const policy = node.querySelector('[data-key=exit_policy]');
     if (saved) policy.value = saved.exit_policy;
     node.querySelector('[data-key=btc_regime_entry_gate]').value=saved?.btc_regime_entry_gate||'OFF';
