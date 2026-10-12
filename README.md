@@ -586,3 +586,12 @@ See [implementation and validation](docs/INSTITUTIONAL_STYLE_REPLAY.md) and the
 Import/VALIDATE does not start a run; START REPLAY remains explicit. This change
 requires review before deployment; it does not automatically deploy or launch
 research, and it does not tune2024/2025/2026 parameters.
+
+### Institutional Exit Research v2
+
+Replay-only `break_even_guard_v1`, `delayed_peak_lock_v2`, and optional
+`setup_rearm_v1` test protection and reentry hypotheses with the institutional
+entry settings unchanged. See [policy, state and metric definitions](docs/INSTITUTIONAL_EXIT_RESEARCH_V2.md)
+and the [2024 A/B/C/D/E importable config](docs/replay/institutional-exit-v2-2024.config.json).
+Import/VALIDATE never starts a run. No deployment, migration or production
+strategy change is included. NO LIVE TRADING.
