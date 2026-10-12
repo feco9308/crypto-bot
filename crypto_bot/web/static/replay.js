@@ -67,6 +67,7 @@
     const policy = node.querySelector('[data-key=exit_policy]');
     if (saved) policy.value = saved.exit_policy;
     node.querySelector('[data-key=btc_regime_entry_gate]').value=saved?.btc_regime_entry_gate||'OFF';
+    node.querySelector('[data-key=setup_rearm]').value=saved?.setup_rearm||'OFF';
     exitFields(node);
     policy.addEventListener('change', () => exitFields(node));
     node.querySelector('.replay-remove').addEventListener('click', () => {
@@ -101,7 +102,7 @@
         strategy: node.querySelector('[data-key=strategy]').value,
         exit_policy: node.querySelector('[data-key=exit_policy]').value,
         btc_regime_entry_gate: node.querySelector('[data-key=btc_regime_entry_gate]').value,
-        entry_filter: {}, strategy_parameters: {}, exit_parameters: {}, risk_parameters: {pyramiding: false}
+        setup_rearm: node.querySelector('[data-key=setup_rearm]').value, entry_filter: {}, strategy_parameters: {}, exit_parameters: {}, risk_parameters: {pyramiding: false}
       };
       node.querySelectorAll('[data-group]').forEach(input => {
         v[input.dataset.group][input.dataset.key] = value(input);

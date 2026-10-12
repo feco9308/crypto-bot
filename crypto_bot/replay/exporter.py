@@ -69,6 +69,10 @@ COLUMNS = (
     "maximum_reached_r",
     "final_stop_price",
     "trail_activation_timestamp",
+    "activation_break_even_time",
+    "activation_4r_time",
+    "peak_trailing_activation_time",
+    "tightening_activation_time",
 )
 
 

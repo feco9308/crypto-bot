@@ -53,6 +53,7 @@ VARIANT_FIELDS = (
     "exit_parameters",
     "risk_parameters",
     "btc_regime_entry_gate",
+    "setup_rearm",
     "entry_filter",
 )
 
@@ -116,11 +117,14 @@ def input_config(snapshot):
             k: copy.deepcopy(
                 v.get(k, "OFF")
                 if k == "btc_regime_entry_gate"
+                else v.get(k, "OFF")
+                if k == "setup_rearm"
                 else v.get(k, FILTER_DEFAULTS)
                 if k == "entry_filter"
                 else v[k]
             )
             for k in VARIANT_FIELDS
+            if k != "setup_rearm" or k in v
         }
         for v in snapshot["variants"]
     ]
@@ -189,7 +193,14 @@ def variant(value, index=0):
         )
     except ConfigValidationError as exc:
         errors.extend(exc.errors)
+    rearm = value.get("setup_rearm", "OFF")
+    if rearm not in ("OFF", "setup_rearm_v1"):
+        invalid(f"{path}.setup_rearm", "Must be OFF or setup_rearm_v1")
+    if rearm != "OFF" and value.get("strategy") != "institutional_style_v1":
+        invalid(f"{path}.setup_rearm", "Requires institutional_style_v1")
     policy = value.get("exit_policy", "baseline_v1")
+    if rearm != "OFF" and policy not in RESEARCH_EXITS:
+        invalid(f"{path}.setup_rearm", "Requires a profit-protection research exit")
     try:
         defaults = at_field(
             f"{path}.exit_policy",
@@ -235,6 +246,28 @@ def variant(value, index=0):
             invalid(
                 f"{path}.exit_parameters.tight_trail_atr_multiplier",
                 "Must be <= trail_atr_multiplier",
+            )
+    if policy == "delayed_peak_lock_v2":
+        if (
+            not D(params["break_even_activation_r"])
+            < D(params["peak_trailing_activation_r"])
+            < D(params["tightening_activation_r"])
+        ):
+            invalid(
+                f"{path}.exit_parameters.peak_trailing_activation_r",
+                "Require break-even < peak trailing < tightening",
+            )
+        if D(params["tight_trail_atr_multiplier"]) > D(
+            params["peak_trail_atr_multiplier"]
+        ):
+            invalid(
+                f"{path}.exit_parameters.tight_trail_atr_multiplier",
+                "Must be <= peak trail distance",
+            )
+        if D(params["initial_stop_atr"]) != 2:
+            invalid(
+                f"{path}.exit_parameters.initial_stop_atr",
+                "Fixed research hypothesis: must be 2",
             )
     paper = definition.settings_type()
     values, errors = {}, []
@@ -288,9 +321,18 @@ def variant(value, index=0):
     name = value.get("name", f"Variant {index + 1}")
     if not isinstance(name, str) or not 1 <= len(name) <= 80:
         invalid(f"{path}.name", "Must be a string of 1..80 characters")
+    if (
+        policy in ("break_even_guard_v1", "delayed_peak_lock_v2")
+        and paper.stop_atr_multiplier != 2
+    ):
+        invalid(
+            f"{path}.strategy_parameters.stop_atr_multiplier",
+            "Exit v2 requires unchanged 2 ATR initial stop",
+        )
     snapshot = paper.public_dict()
     return dict(
         name=name,
+        **({"setup_rearm": rearm} if rearm != "OFF" else {}),
         btc_regime_entry_gate=gate,
         entry_filter=bounds,
         strategy=definition.name,

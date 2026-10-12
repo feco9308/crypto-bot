@@ -4,6 +4,7 @@ from collections import Counter
 
 # Exact existing RiskManager/replay strings. This mapping never gates a trade.
 CATEGORIES = {
+    "SETUP_NOT_REARMED": "setup_not_rearmed",
     'BTC_BEAR_REGIME': 'btc_bear_regime',
     'BTC_REGIME_UNAVAILABLE': 'btc_regime_unavailable',
     'CORRELATION_LIMIT': 'correlation_limit',
@@ -81,6 +82,8 @@ def from_audit(events, blocked):
         elif kind == "BTC_REGIME_ENTRY_BLOCK":
             reasons["BTC_REGIME_ENTRY_BLOCK"] += 1
             btc_blocks[event.get("btc_regime_state", "UNKNOWN")] += 1
+        elif kind == "SETUP_NOT_REARMED":
+            reasons[kind] += 1
         elif kind == "ENTRY_FILL":
             held.add(symbol)
         elif kind == "EXIT_FILL":

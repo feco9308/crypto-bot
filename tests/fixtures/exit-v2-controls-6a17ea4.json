@@ -1,0 +1,506 @@
+{
+  "baseline_v1": {
+    "trades": [
+      {
+        "mfe_abs_pct": 4.94752623688156,
+        "mae_abs_pct": 2.048975512243878,
+        "mfe_r": 2.154983824561107,
+        "mae_r": 0.89246804855561,
+        "maximum_high_since_entry": "105",
+        "maximum_unrealized_profit": "9.370943898676",
+        "realized_profit": "-4.587119027896",
+        "peak_to_exit_giveback_r": 3.042882219032852,
+        "peak_to_exit_giveback_pct": 148.9504480818,
+        "peak_to_exit_giveback_percentage_points": 6.979031463289071,
+        "research_exit_stage": "INITIAL_STOP",
+        "maximum_reached_r": 2.154983824561107,
+        "final_stop_price": "98",
+        "trail_activation_timestamp": null,
+        "entry_score": 82,
+        "score_components": {
+          "trend": 25
+        },
+        "score_reasons": [
+          "synthetic score"
+        ],
+        "delta_1h": 1,
+        "delta_4h": 4,
+        "delta_24h": 10,
+        "scanner_snapshot_timestamp": "2025-01-01T00:00:00Z",
+        "ema50": 99,
+        "ema200": 98,
+        "rsi": 60,
+        "atr": 1,
+        "atr_pct": 1,
+        "relative_volume": 2,
+        "momentum": 1,
+        "range_position": 0.7,
+        "entry_reference_price": "100",
+        "entry_drift_pct": 0.0,
+        "entry_drift_atr": 0.0,
+        "risk_amount": "4.587119027896",
+        "risk_reasons": [
+          "approved within all limits",
+          "size capped by exposure or available cash"
+        ],
+        "risk_decision": {
+          "approved": true,
+          "requested_symbol": "BTCUSDT",
+          "risk_amount": "4.587119027896",
+          "position_notional": "199.800199800112",
+          "quantity": "1.997003496253",
+          "stop_distance_pct": "2.048975512243",
+          "reasons": [
+            "approved within all limits",
+            "size capped by exposure or available cash"
+          ]
+        },
+        "portfolio_at_decision": {
+          "equity": "1000.000000000000",
+          "cash_balance": "1000",
+          "reserved_cash": "0",
+          "positions": [],
+          "realized_pnl": "0",
+          "fees_paid": "0",
+          "daily_pnl": "0E-12",
+          "day_start_equity": "1000",
+          "peak_equity": "1000",
+          "max_drawdown": "0E-12",
+          "stale_exposure_reservation": "0"
+        },
+        "strategy_reasons": [
+          "MULTITF_BULLISH",
+          "BTC_BULL",
+          "SCORE_AND_MOMENTUM_APPROVED"
+        ],
+        "algorithm_watch": true,
+        "btc_regime": "UNKNOWN",
+        "btc_regime_source_timestamp": null,
+        "btc_regime_entry_gate": "OFF",
+        "intrabar_ambiguity": false,
+        "institutional_context": {
+          "coin_trends": {
+            "1h": {
+              "ready": true,
+              "ema_fast": 110,
+              "ema_slow": 100
+            },
+            "4h": {
+              "ready": true,
+              "ema_fast": 110,
+              "ema_slow": 100
+            },
+            "1d": {
+              "ready": true,
+              "ema_fast": 110,
+              "ema_slow": 100
+            }
+          },
+          "btc": {
+            "regime": "BULL",
+            "risk_multiplier": "1"
+          },
+          "correlation": {
+            "blocked": false,
+            "pairs": []
+          }
+        },
+        "institutional_btc_regime": "BULL",
+        "risk_multiplier": "1",
+        "stale_state": {
+          "stale": false,
+          "quarantined": false,
+          "first_stale_time": null,
+          "stale_since": null,
+          "last_valid_mark_time": "2025-01-01T00:02:00Z",
+          "last_valid_mark_price": "98",
+          "stale_duration_seconds": 0,
+          "resumed_after_stale": false
+        },
+        "position_id": 1,
+        "symbol": "BTCUSDT",
+        "stale": false,
+        "quarantined": false,
+        "first_stale_time": null,
+        "last_valid_mark_time": "2025-01-01T00:02:00Z",
+        "last_valid_mark_price": "98",
+        "stale_duration_seconds": 0,
+        "resumed_after_stale": false,
+        "capital_locked_by_stale_positions": "0",
+        "exposure_locked_by_stale_positions": "0",
+        "status": "CLOSED",
+        "asset_group": "BTC",
+        "entry_time": "2025-01-01T00:00:00Z",
+        "exit_time": "2025-01-01T00:02:00Z",
+        "duration_seconds": 120.0,
+        "quantity": "1.997003496253",
+        "notional": "199.800199800112",
+        "entry_fill_price": "100.050000000000",
+        "entry_price": "100.050000000000",
+        "exit_price": "97.951000000000",
+        "original_stop_price": "98",
+        "take_profit_price": null,
+        "stop_price": "98",
+        "exit_reason": "ORIGINAL_STOP",
+        "realized_pnl": "-4.587119027896",
+        "unrealized_pnl": "0",
+        "return_pct": -2.2935595139490093,
+        "r_multiple": -1.0,
+        "mfe_pct": 4.94752623688156,
+        "mae_pct": -2.048975512243878,
+        "fees": "0.395408689261",
+        "slippage": "0.197703346128",
+        "entry_fee": "0.199800199800",
+        "exit_fee": "0.195608489461",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "strategy_name": "institutional_style_v1",
+        "exit_policy": "baseline_v1"
+      }
+    ],
+    "cash": "995.412880972104",
+    "orders": [
+      {
+        "order_id": 1,
+        "position_id": 1,
+        "symbol": "BTCUSDT",
+        "side": "BUY",
+        "status": "FILLED",
+        "signal_time": "2025-01-01T00:00:00Z",
+        "execution_time": "2025-01-01T00:00:00Z",
+        "reference_price": "100",
+        "fill_price": "100.050000000000",
+        "quantity": "1.997003496253",
+        "notional": "199.800199800112",
+        "fee": "0.199800199800",
+        "slippage": "0.099850174812",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "STRATEGY",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      },
+      {
+        "order_id": 2,
+        "position_id": 1,
+        "symbol": "BTCUSDT",
+        "side": "SELL",
+        "status": "FILLED",
+        "signal_time": "2025-01-01T00:02:00Z",
+        "execution_time": "2025-01-01T00:02:00Z",
+        "reference_price": "98",
+        "fill_price": "97.951000000000",
+        "quantity": "1.997003496253",
+        "notional": "195.608489461477",
+        "fee": "0.195608489461",
+        "slippage": "0.097853171316",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "ORIGINAL_STOP",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      }
+    ],
+    "fills": [
+      {
+        "order_id": 1,
+        "position_id": 1,
+        "symbol": "BTCUSDT",
+        "side": "BUY",
+        "status": "FILLED",
+        "signal_time": "2025-01-01T00:00:00Z",
+        "execution_time": "2025-01-01T00:00:00Z",
+        "reference_price": "100",
+        "fill_price": "100.050000000000",
+        "quantity": "1.997003496253",
+        "notional": "199.800199800112",
+        "fee": "0.199800199800",
+        "slippage": "0.099850174812",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "STRATEGY",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      },
+      {
+        "order_id": 2,
+        "position_id": 1,
+        "symbol": "BTCUSDT",
+        "side": "SELL",
+        "status": "FILLED",
+        "signal_time": "2025-01-01T00:02:00Z",
+        "execution_time": "2025-01-01T00:02:00Z",
+        "reference_price": "98",
+        "fill_price": "97.951000000000",
+        "quantity": "1.997003496253",
+        "notional": "195.608489461477",
+        "fee": "0.195608489461",
+        "slippage": "0.097853171316",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "ORIGINAL_STOP",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      }
+    ]
+  },
+  "adaptive_peak_lock_v1": {
+    "trades": [
+      {
+        "activation_075r_time": "2025-01-01T00:01:00Z",
+        "activation_1r_time": null,
+        "activation_2r_time": null,
+        "highest_price_since_entry": "101.7727507499997606715507025",
+        "highest_profit_pct": 1.4678899413926458,
+        "highest_r": 0.75,
+        "highest_net_r": 0.6400051677164721,
+        "break_even_stop": "100.300450525564",
+        "final_protective_stop": "100.300450525564",
+        "exit_stage": "BREAK_EVEN_075R",
+        "realized_return_pct": 1.00000000000044e-12,
+        "realized_r": 4.360035106648086e-13,
+        "giveback_pct": 1.467889941391646,
+        "giveback_r": 0.6400051677160361,
+        "mfe_abs_pct": 1.721889805097212,
+        "mae_abs_pct": 0,
+        "mfe_r": 0.75,
+        "mae_r": 0,
+        "maximum_high_since_entry": "101.7727507499997606715507025",
+        "maximum_unrealized_profit": "2.935779882784",
+        "realized_profit": "2E-12",
+        "peak_to_exit_giveback_r": 0.6400051677160361,
+        "peak_to_exit_giveback_pct": 99.99999999993187,
+        "peak_to_exit_giveback_percentage_points": 1.467889941391646,
+        "research_exit_stage": "BREAK_EVEN",
+        "maximum_reached_r": 0.75,
+        "final_stop_price": "100.300450525564",
+        "trail_activation_timestamp": null,
+        "entry_score": 82,
+        "score_components": {
+          "trend": 25
+        },
+        "score_reasons": [
+          "synthetic score"
+        ],
+        "delta_1h": 1,
+        "delta_4h": 4,
+        "delta_24h": 10,
+        "scanner_snapshot_timestamp": "2025-01-01T00:00:00Z",
+        "ema50": 99,
+        "ema200": 98,
+        "rsi": 60,
+        "atr": 1,
+        "atr_pct": 1,
+        "relative_volume": 2,
+        "momentum": 1,
+        "range_position": 0.7,
+        "entry_reference_price": "100",
+        "entry_drift_pct": 0.0,
+        "entry_drift_atr": 0.0,
+        "risk_amount": "4.587119027896",
+        "risk_reasons": [
+          "approved within all limits",
+          "size capped by exposure or available cash"
+        ],
+        "risk_decision": {
+          "approved": true,
+          "requested_symbol": "BTCUSDT",
+          "risk_amount": "4.587119027896",
+          "position_notional": "199.800199800112",
+          "quantity": "1.997003496253",
+          "stop_distance_pct": "2.048975512243",
+          "reasons": [
+            "approved within all limits",
+            "size capped by exposure or available cash"
+          ]
+        },
+        "portfolio_at_decision": {
+          "equity": "1000.000000000000",
+          "cash_balance": "1000",
+          "reserved_cash": "0",
+          "positions": [],
+          "realized_pnl": "0",
+          "fees_paid": "0",
+          "daily_pnl": "0E-12",
+          "day_start_equity": "1000",
+          "peak_equity": "1000",
+          "max_drawdown": "0E-12",
+          "stale_exposure_reservation": "0"
+        },
+        "strategy_reasons": [
+          "MULTITF_BULLISH",
+          "BTC_BULL",
+          "SCORE_AND_MOMENTUM_APPROVED"
+        ],
+        "algorithm_watch": true,
+        "btc_regime": "UNKNOWN",
+        "btc_regime_source_timestamp": null,
+        "btc_regime_entry_gate": "OFF",
+        "intrabar_ambiguity": true,
+        "institutional_context": {
+          "coin_trends": {
+            "1h": {
+              "ready": true,
+              "ema_fast": 110,
+              "ema_slow": 100
+            },
+            "4h": {
+              "ready": true,
+              "ema_fast": 110,
+              "ema_slow": 100
+            },
+            "1d": {
+              "ready": true,
+              "ema_fast": 110,
+              "ema_slow": 100
+            }
+          },
+          "btc": {
+            "regime": "BULL",
+            "risk_multiplier": "1"
+          },
+          "correlation": {
+            "blocked": false,
+            "pairs": []
+          }
+        },
+        "institutional_btc_regime": "BULL",
+        "risk_multiplier": "1",
+        "stale_state": {
+          "stale": false,
+          "quarantined": false,
+          "first_stale_time": null,
+          "stale_since": null,
+          "last_valid_mark_time": "2025-01-01T00:01:00Z",
+          "last_valid_mark_price": "103",
+          "stale_duration_seconds": 0,
+          "resumed_after_stale": false
+        },
+        "adaptive_peak_state": {
+          "stop": "100.300450525564",
+          "highest": "101.7727507499997606715507025",
+          "stage": 1,
+          "times": [
+            "2025-01-01T00:01:00Z",
+            null,
+            null
+          ]
+        },
+        "position_id": 1,
+        "symbol": "BTCUSDT",
+        "stale": false,
+        "quarantined": false,
+        "first_stale_time": null,
+        "last_valid_mark_time": "2025-01-01T00:01:00Z",
+        "last_valid_mark_price": "103",
+        "stale_duration_seconds": 0,
+        "resumed_after_stale": false,
+        "capital_locked_by_stale_positions": "0",
+        "exposure_locked_by_stale_positions": "0",
+        "status": "CLOSED",
+        "asset_group": "BTC",
+        "entry_time": "2025-01-01T00:00:00Z",
+        "exit_time": "2025-01-01T00:01:00Z",
+        "duration_seconds": 60.0,
+        "quantity": "1.997003496253",
+        "notional": "199.800199800112",
+        "entry_fill_price": "100.050000000000",
+        "entry_price": "100.050000000000",
+        "exit_price": "100.250300300301",
+        "original_stop_price": "98",
+        "take_profit_price": null,
+        "stop_price": "100.300450525564",
+        "exit_reason": "ADAPTIVE_PEAK_LOCK",
+        "realized_pnl": "2E-12",
+        "unrealized_pnl": "0",
+        "return_pct": 1.00000000000044e-12,
+        "r_multiple": 4.360035106648086e-13,
+        "mfe_pct": 1.721889805097212,
+        "mae_pct": 0,
+        "fees": "0.400000400000",
+        "slippage": "0.200000350000",
+        "entry_fee": "0.199800199800",
+        "exit_fee": "0.200200200200",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "strategy_name": "institutional_style_v1",
+        "exit_policy": "adaptive_peak_lock_v1"
+      }
+    ],
+    "cash": "1000.000000000002",
+    "orders": [
+      {
+        "order_id": 1,
+        "position_id": 1,
+        "symbol": "BTCUSDT",
+        "side": "BUY",
+        "status": "FILLED",
+        "signal_time": "2025-01-01T00:00:00Z",
+        "execution_time": "2025-01-01T00:00:00Z",
+        "reference_price": "100",
+        "fill_price": "100.050000000000",
+        "quantity": "1.997003496253",
+        "notional": "199.800199800112",
+        "fee": "0.199800199800",
+        "slippage": "0.099850174812",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "STRATEGY",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      },
+      {
+        "order_id": 2,
+        "position_id": 1,
+        "symbol": "BTCUSDT",
+        "side": "SELL",
+        "status": "FILLED",
+        "signal_time": "2025-01-01T00:01:00Z",
+        "execution_time": "2025-01-01T00:01:00Z",
+        "reference_price": "100.300450525564",
+        "fill_price": "100.250300300301",
+        "quantity": "1.997003496253",
+        "notional": "200.200200200114",
+        "fee": "0.200200200200",
+        "slippage": "0.100150175188",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "ADAPTIVE_PEAK_LOCK",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      }
+    ],
+    "fills": [
+      {
+        "order_id": 1,
+        "position_id": 1,
+        "symbol": "BTCUSDT",
+        "side": "BUY",
+        "status": "FILLED",
+        "signal_time": "2025-01-01T00:00:00Z",
+        "execution_time": "2025-01-01T00:00:00Z",
+        "reference_price": "100",
+        "fill_price": "100.050000000000",
+        "quantity": "1.997003496253",
+        "notional": "199.800199800112",
+        "fee": "0.199800199800",
+        "slippage": "0.099850174812",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "STRATEGY",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      },
+      {
+        "order_id": 2,
+        "position_id": 1,
+        "symbol": "BTCUSDT",
+        "side": "SELL",
+        "status": "FILLED",
+        "signal_time": "2025-01-01T00:01:00Z",
+        "execution_time": "2025-01-01T00:01:00Z",
+        "reference_price": "100.300450525564",
+        "fill_price": "100.250300300301",
+        "quantity": "1.997003496253",
+        "notional": "200.200200200114",
+        "fee": "0.200200200200",
+        "slippage": "0.100150175188",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "ADAPTIVE_PEAK_LOCK",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      }
+    ]
+  }
+}

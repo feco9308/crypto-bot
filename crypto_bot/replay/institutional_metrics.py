@@ -69,6 +69,7 @@ def research_outcome(trades):
     winners = [t for t in closed if (t.get("return_pct") or 0) > 1e-6]
     output = {
         "research_closed_trades": len(closed),
+        "largest_realized_R": max(rs) if rs else None,
         "expectancy_r": mean(rs) if rs else None,
         "average_MFE_R": mean(mfes) if mfes else None,
         "median_MFE_R": median(mfes) if mfes else None,
@@ -87,6 +88,39 @@ def research_outcome(trades):
             and t["peak_to_exit_giveback_pct"] > value
             for t in winners
         )
+    for level in (1, 2):
+        output[f"trades_reached_{level}R_then_lost"] = sum(
+            t.get("mfe_r", 0) >= level for t in losers
+        )
+    captures = [
+        t["r_multiple"] / t["mfe_r"]
+        for t in closed
+        if t.get("mfe_r", 0) > 0 and t.get("r_multiple") is not None
+    ]
+    output.update(
+        average_mfe_capture_ratio=mean(captures) if captures else None,
+        median_mfe_capture_ratio=median(captures) if captures else None,
+    )
+    previous_exit = {}
+    reentries = dict.fromkeys((1, 4, 24), 0)
+    for trade in sorted(
+        (t for t in trades if t.get("entry_time")), key=lambda t: t["entry_time"]
+    ):
+        symbol = trade["symbol"]
+        if symbol in previous_exit:
+            from crypto_bot.replay.clock import ms
+
+            gap = ms(trade["entry_time"]) - ms(previous_exit[symbol])
+            for hours in reentries:
+                reentries[hours] += 0 <= gap <= hours * 3600000
+        if trade.get("exit_time"):
+            previous_exit[symbol] = trade["exit_time"]
+    output.update(
+        {
+            f"same_symbol_reentry_within_{hours}h": count
+            for hours, count in reentries.items()
+        }
+    )
     turnover = sum(
         (
             D(t["notional"])

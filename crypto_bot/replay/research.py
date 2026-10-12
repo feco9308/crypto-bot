@@ -3,13 +3,15 @@
 from decimal import DecimalException
 
 from crypto_bot.replay.clock import ms
+from crypto_bot.replay.exit_v2 import DEFAULTS as V2_DEFAULTS
+from crypto_bot.replay.exit_v2 import ExitV2
 from crypto_bot.replay.institutional_exit import DEFAULTS, ParameterizedPeakLock, custom
 from crypto_bot.replay.registry import EXITS
 from crypto_bot.replay.shadow_adaptive import NAME, AdaptivePeakLock, PeakState
 from crypto_bot.trading.domain import D
 
 GATES = ("OFF", "BULLISH_ONLY")
-RESEARCH_EXITS = {NAME: DEFAULTS}
+RESEARCH_EXITS = {NAME: DEFAULTS} | V2_DEFAULTS
 FILTER_DEFAULTS = dict(
     score_min=None, score_max=None, delta4h_min=None, delta4h_max=None
 )
@@ -74,8 +76,11 @@ def adaptive(position, settings):
         entry_fee=str(position.entry_fee),
     )
     parameters = position.entry_data.get("adaptive_exit_parameters", {})
+    name = position.entry_data.get("research_protection_policy")
     model = (
-        ParameterizedPeakLock(entry, settings, parameters)
+        ExitV2(entry, settings, name, parameters)
+        if name in V2_DEFAULTS
+        else ParameterizedPeakLock(entry, settings, parameters)
         if custom(parameters)
         else AdaptivePeakLock(entry, settings)
     )

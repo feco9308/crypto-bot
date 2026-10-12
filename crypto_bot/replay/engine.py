@@ -13,6 +13,8 @@ from crypto_bot.replay import stale
 from crypto_bot.replay.clock import ReplayClock, at, ms
 from crypto_bot.replay.config import settings_for
 from crypto_bot.replay.execution import ReplayExecution
+from crypto_bot.replay.exit_v2 import DEFAULTS as V2_DEFAULTS
+from crypto_bot.replay.exit_v2 import STAGES, SetupRearm, evaluation
 from crypto_bot.replay.exits import levels, observe, policy
 from crypto_bot.replay.institutional import NAME as INSTITUTIONAL
 from crypto_bot.replay.institutional import InstitutionalContext
@@ -24,6 +26,7 @@ from crypto_bot.replay.registry import SCORES, STRATEGIES
 from crypto_bot.replay.rejections import legacy_group, reason_key
 from crypto_bot.replay.research import (
     NAME,
+    RESEARCH_EXITS,
     adaptive,
     entry_filter_reasons,
     gate_state,
@@ -45,7 +48,8 @@ class Variant:
         self.risk = RiskManager(self.settings)
         self.ledger = MemoryLedger(self.settings, at(start))
         self.execution = ReplayExecution(self.ledger, self.settings)
-        self.adaptive_exit = config["exit_policy"] == NAME
+        self.adaptive_exit = config["exit_policy"] in RESEARCH_EXITS
+        self.rearm = SetupRearm() if config.get("setup_rearm", "OFF") != "OFF" else None
         self.exit = policy(
             "baseline_v1" if self.adaptive_exit else config["exit_policy"],
             config["exit_parameters"],
@@ -140,7 +144,47 @@ class Variant:
         self.pending = []
         existing = {p.symbol for p in self.ledger.portfolio.positions()}
         for context, row in self.contexts(rows, watch, now):
+            if self.rearm:
+                # Setup transition is independent of portfolio correlation/risk/slots.
+                audit = context.features.get("institutional", {})
+                setup_context = replace(
+                    context,
+                    features=context.features
+                    | {
+                        "institutional": audit
+                        | {"correlation": {"blocked": False, "pairs": []}}
+                    },
+                )
+                setup_signal = self.strategy.evaluate(setup_context, False)
+                setup = setup_signal.action == "BUY"
+                observable = not any(
+                    "UNAVAILABLE" in reason for reason in setup_signal.reasons
+                )
+                if observable and self.rearm.observe(context.symbol, setup, now):
+                    self.event(
+                        "SETUP_REARMED",
+                        now,
+                        symbol=context.symbol,
+                        setup=False,
+                        snapshot_id=context.snapshot_id,
+                    )
             signal = self.strategy.evaluate(context, context.symbol in existing)
+            if (
+                self.rearm
+                and signal.action == "BUY"
+                and not self.rearm.allowed(context.symbol, now)
+            ):
+                self.rearm.blocks += 1
+                self.block_entry(signal, "SETUP_NOT_REARMED")
+                self.event(
+                    "SETUP_NOT_REARMED",
+                    now,
+                    symbol=context.symbol,
+                    action="BUY",
+                    reason="SETUP_NOT_REARMED",
+                    original_strategy_decision=asdict(signal),
+                )
+                continue
             if (
                 self.config["strategy"] == INSTITUTIONAL
                 and signal.action == "HOLD"
@@ -192,7 +236,7 @@ class Variant:
                     continue
             # Adaptive research is stop-only, as in Shadow; gate never blocks SELL.
             if signal.action != "HOLD" and not (
-                self.adaptive_exit and signal.action == "SELL"
+                self.config["exit_policy"] == NAME and signal.action == "SELL"
             ):
                 self.pending.append((signal, row))
         return {signal.symbol for signal, row in self.pending} | existing
@@ -209,6 +253,21 @@ class Variant:
         for signal, row in sorted(
             self.pending, key=lambda item: item[0].action != "SELL"
         ):
+            if (
+                self.rearm
+                and signal.action == "BUY"
+                and not self.rearm.allowed(signal.symbol, ms(signal.timestamp))
+            ):
+                self.rearm.blocks += 1
+                self.block_entry(signal, "SETUP_NOT_REARMED")
+                self.event(
+                    "SETUP_NOT_REARMED",
+                    now,
+                    symbol=signal.symbol,
+                    action="BUY",
+                    reason="SETUP_NOT_REARMED",
+                )
+                continue
             c = datasets.get(signal.symbol, {}).get(now)
             held = next(
                 (p for p in pfolio.positions() if p.symbol == signal.symbol), None
@@ -378,6 +437,13 @@ class Variant:
                     ),
                     intrabar_ambiguity=False,
                 )
+                if self.config["exit_policy"] in V2_DEFAULTS:
+                    position.entry_data["research_protection_policy"] = self.config[
+                        "exit_policy"
+                    ]
+                    position.entry_data["adaptive_exit_parameters"] = dict(
+                        self.config["exit_parameters"]
+                    )
                 if self.adaptive_exit and custom_peak_lock(
                     self.config.get("exit_parameters", {})
                 ):
@@ -472,6 +538,10 @@ class Variant:
             position, audit = self.execution.fill(
                 signal, decision, price, at(now), candle["interval"], reason
             )
+            if self.rearm and self.adaptive_exit and model.state.stage > 0:
+                stage = STAGES[model.state.stage]
+                self.rearm.closed(symbol, stage, now)
+                self.event("SETUP_REARM_BLOCKED", now, symbol=symbol, exit_stage=stage)
             position.slippage_total += D(audit["slippage"])
             self.total_slippage += D(audit["slippage"])
             self.closed.append(self.trade(position, now))
@@ -499,6 +569,11 @@ class Variant:
                 else None
             )
             adaptive_audit = adaptive(p, self.settings).audit(result)
+            if (
+                self.config["exit_policy"] in V2_DEFAULTS
+                and p.exit_reason == "STRATEGY"
+            ):
+                adaptive_audit["exit_stage"] = "STRATEGY_EXIT"
         if self.research_reporting:
             adaptive_audit.update(trade_observations(p, self.settings, now))
         return (
@@ -570,6 +645,7 @@ class Variant:
 
     def checkpoint(self):
         return dict(
+            **({"setup_rearm": self.rearm.checkpoint()} if self.rearm else {}),
             **(
                 {"institutional_rejections": dict(self.institutional_rejections)}
                 if self.config["strategy"] == INSTITUTIONAL
@@ -681,6 +757,8 @@ class ReplayEngine:
             )
             for i, (v, state) in enumerate(zip(variants, checkpoint["variants"])):
                 v.ledger.restore(state["ledger"])
+                if v.rearm:
+                    v.rearm = SetupRearm(state.get("setup_rearm"))
                 v.execution.next_order = state["next_order"]
                 v.blocked = state["blocked"]
                 v.blocked_reasons.update(
@@ -932,46 +1010,70 @@ class ReplayEngine:
             if institutional:
                 research_metrics, research_breakdowns = research_summary(trades)
                 result.update(research_metrics)
+                result.update(
+                    v.rearm.metrics()
+                    if v.rearm
+                    else dict(
+                        rearm_block_count=0,
+                        rearm_success_count=0,
+                        average_time_to_rearm=None,
+                    )
+                )
                 if v.config["strategy"] == INSTITUTIONAL:
                     result["institutional_entry_rejections"] = dict(
                         v.institutional_rejections
                     )
                 breakdowns.update(research_breakdowns)
             results.append(dict(metrics=result, breakdowns=breakdowns))
-        metadata = run["metadata"] | dict(
-            stale_position_policy=stale_policy,
-            stale_position_count=sum(
-                r["metrics"]["stale_position_count"] for r in results
-            ),
-            stale_symbols=sorted(
-                {s for r in results for s in r["metrics"]["stale_symbols"]}
-            ),
-            stale_data_affected=any(
-                r["metrics"]["stale_data_affected"] for r in results
-            ),
-            stale_details_by_variant=[
-                dict(
-                    variant=i,
-                    **{
-                        k: r["metrics"][k]
-                        for k in (
-                            "stale_position_count",
-                            "stale_symbols",
-                            "stale_positions",
-                            "first_stale_time",
-                            "stale_duration_seconds",
-                            "resumed_after_stale",
-                            "capital_locked_by_stale_positions",
-                            "exposure_locked_by_stale_positions",
-                        )
-                    },
-                )
-                for i, r in enumerate(results)
-            ],
-            historical_data_revision=self.provider.cache.revision(self.provider.used),
-            cache_revision=self.provider.cache.digest(),
-            resolved_candidate_symbols=candidates,
-            profile=dict(self.profile),
-            elapsed_seconds=time.monotonic() - began,
+        v2_evaluation = (
+            evaluation(config["variants"], results)
+            if any(v["exit_policy"] in V2_DEFAULTS for v in config["variants"])
+            else None
+        )
+        metadata = (
+            run["metadata"]
+            | (
+                {"institutional_exit_v2_evaluation": v2_evaluation}
+                if v2_evaluation
+                else {}
+            )
+            | dict(
+                stale_position_policy=stale_policy,
+                stale_position_count=sum(
+                    r["metrics"]["stale_position_count"] for r in results
+                ),
+                stale_symbols=sorted(
+                    {s for r in results for s in r["metrics"]["stale_symbols"]}
+                ),
+                stale_data_affected=any(
+                    r["metrics"]["stale_data_affected"] for r in results
+                ),
+                stale_details_by_variant=[
+                    dict(
+                        variant=i,
+                        **{
+                            k: r["metrics"][k]
+                            for k in (
+                                "stale_position_count",
+                                "stale_symbols",
+                                "stale_positions",
+                                "first_stale_time",
+                                "stale_duration_seconds",
+                                "resumed_after_stale",
+                                "capital_locked_by_stale_positions",
+                                "exposure_locked_by_stale_positions",
+                            )
+                        },
+                    )
+                    for i, r in enumerate(results)
+                ],
+                historical_data_revision=self.provider.cache.revision(
+                    self.provider.used
+                ),
+                cache_revision=self.provider.cache.digest(),
+                resolved_candidate_symbols=candidates,
+                profile=dict(self.profile),
+                elapsed_seconds=time.monotonic() - began,
+            )
         )
         self.store.complete(run_id, results, metadata)

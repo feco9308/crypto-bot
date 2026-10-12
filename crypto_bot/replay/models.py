@@ -154,7 +154,7 @@ class ReplayStore:
                           json_extract(data,'$.filter_reasons') filter_reasons
                    FROM replay_audit_events WHERE run_id=? AND variant=? AND
                    (json_extract(data,'$.event') IN
-                        ('ENTRY_FILL','EXIT_FILL','NO_FILL','RISK_REJECTED','BTC_REGIME_ENTRY_BLOCK','RESEARCH_ENTRY_FILTER_BLOCK') OR
+                        ('ENTRY_FILL','EXIT_FILL','NO_FILL','RISK_REJECTED','BTC_REGIME_ENTRY_BLOCK','RESEARCH_ENTRY_FILTER_BLOCK','SETUP_NOT_REARMED') OR
                     (json_extract(data,'$.event')='RISK_DECISION' AND
                      json_extract(data,'$.decision.approved')=0)) ORDER BY id""",
                 (run_id, variant),
