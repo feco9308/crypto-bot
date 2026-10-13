@@ -10,6 +10,7 @@ from pathlib import Path
 
 from crypto_bot.config.settings import Settings
 from crypto_bot.replay.clock import ms, utc
+from crypto_bot.replay.market_context import ISOLATED
 from crypto_bot.replay.registry import EXITS, STRATEGIES
 from crypto_bot.replay.research import FILTER_DEFAULTS, GATES, RESEARCH_EXITS
 from crypto_bot.replay.stale import POLICIES, STRICT
@@ -447,6 +448,7 @@ def _validate(value):
     institutional = [v for v in variants if v["strategy"] == "institutional_style_v1"]
     return dict(
         schema_version=1,
+        market_context_version=ISOLATED,
         stale_position_policy=stale_policy,
         name=str(value.get("name", "Historical Replay"))[:80],
         start=start.isoformat() + "Z",

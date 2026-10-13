@@ -3,6 +3,7 @@
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from dataclasses import asdict, replace
 from datetime import datetime
 from types import SimpleNamespace
@@ -20,6 +21,15 @@ from crypto_bot.replay.institutional import NAME as INSTITUTIONAL
 from crypto_bot.replay.institutional import InstitutionalContext
 from crypto_bot.replay.institutional_exit import custom as custom_peak_lock
 from crypto_bot.replay.institutional_metrics import research_summary, trade_observations
+from crypto_bot.replay.market_context import (
+    ISOLATED,
+    LEGACY,
+    canonical_scan_histories,
+    exit_rows,
+    trim,
+)
+from crypto_bot.replay.market_context import frame as market_frame
+from crypto_bot.replay.market_context import version as context_version
 from crypto_bot.replay.metrics import summary
 from crypto_bot.replay.portfolio import MemoryLedger
 from crypto_bot.replay.registry import SCORES, STRATEGIES
@@ -68,6 +78,7 @@ class Variant:
         self.blocked_reasons = defaultdict(int)
         self.pending = []
         self.research_context = None
+        self.context_isolated = False
         self.research_reporting = config["strategy"] == INSTITUTIONAL
         self.reporting_btc_settings = None
         self.institutional_rejections = defaultdict(int)
@@ -119,6 +130,8 @@ class Variant:
                 audit = self.research_context.context(
                     s, now, self.settings, self.ledger.portfolio.positions()
                 )
+                if self.context_isolated:
+                    audit = deepcopy(audit)
                 f = f | {"institutional": audit}
                 row = row | {"institutional_context": audit}
             context = MarketContext(
@@ -330,6 +343,8 @@ class Variant:
                 audit = self.research_context.context(
                     signal.symbol, now, self.settings, pfolio.positions()
                 )
+                if self.context_isolated:
+                    audit = deepcopy(audit)
                 row = row | {"institutional_context": audit}
                 correlation = audit["correlation"]
                 multiplier = D(audit["btc"]["risk_multiplier"])
@@ -673,6 +688,8 @@ class ReplayEngine:
         began = time.monotonic()
         run = self.store.get(run_id)
         config = run["config"]
+        mode = context_version(config)
+        isolated = mode == ISOLATED
         start, end = ms(config["start"]), ms(config["end"])
         scanner = Settings(**config["scanner_settings"])
         clock = ReplayClock(start - config["warmup_hours"] * 3600000)
@@ -720,26 +737,43 @@ class ReplayEngine:
         self.profile["hourly_cache_seconds"] += time.perf_counter() - cache_began
         if not histories:
             raise ValueError("No historical candles in selected research universe")
+        scan_histories = {s: histories[s] for s in candidates if s in histories}
+        if isolated:
+            scan_histories = canonical_scan_histories(
+                scan_histories, start - config["warmup_hours"] * 3600000
+            )
         universe = HistoricalUniverse(
-            {s: histories[s] for s in candidates if s in histories},
+            scan_histories,
             scanner,
             float(config["spread_approximation_pct"]),
         )
         stale_policy = config.get("stale_position_policy", stale.STRICT)
         variants = [Variant(v, start, stale_policy) for v in config["variants"]]
         if institutional:
-            research_context = InstitutionalContext(histories)
+            research_context = InstitutionalContext(
+                histories, start if isolated else None
+            )
             reporting_settings = next(
                 v.settings for v in variants if v.config["strategy"] == INSTITUTIONAL
             )
             for v in variants:
                 v.research_context = research_context
-                v.research_reporting = True
-                v.reporting_btc_settings = reporting_settings
+                v.context_isolated = isolated
+                if not isolated:
+                    v.research_reporting = True
+                    v.reporting_btc_settings = reporting_settings
+                else:
+                    v.reporting_btc_settings = (
+                        v.settings if v.config["strategy"] == INSTITUTIONAL else None
+                    )
         history = defaultdict(list)
         checkpoint = self.store.checkpoint(run_id)
         cursor = start - 24 * 3600000
         if checkpoint:
+            if checkpoint.get("market_context_version", LEGACY) != mode:
+                raise ValueError(
+                    "Cannot resume a checkpoint under a different market context version"
+                )
             self.provider.used.update(checkpoint.get("source_objects", []))
             cursor = checkpoint["next_time"]
             clock.advance(cursor)
@@ -784,65 +818,84 @@ class ReplayEngine:
             self.check()
             clock.advance(cursor)
             began_scan = time.perf_counter()
-            markets = universe.ranked(cursor)
-            held = {p.symbol for v in variants for p in v.ledger.portfolio.positions()}
-            by_symbol = {m.symbol: m for m in markets}
-            for symbol in held:
-                if symbol not in by_symbol:
-                    m = universe.market(symbol, cursor)
-                    if m:
-                        by_symbol[symbol] = m
-            self.profile["universe_seconds"] += time.perf_counter() - began_scan
-            began_indicators = time.perf_counter()
-            rows = []
-            for symbol, market in by_symbol.items():
-                observed = [c for c, qv in universe.as_of(symbol, cursor)]
-                assert all(c.close_time < clock.now_ms for c in observed)
-                f = features(observed, market, scanner)
-                computed = SCORES.get(config["score_version"])(f, scanner)
-                past = history[symbol]
-                momentum = score_momentum(
-                    computed["total_score"],
-                    at(cursor),
-                    past,
-                    scanner.momentum_windows,
-                    scanner.history_tolerance_minutes,
+            if isolated:
+                markets = universe.ranked(cursor)
+                self.profile["universe_seconds"] += time.perf_counter() - began_scan
+                began_indicators = time.perf_counter()
+                current_frame = market_frame(
+                    universe,
+                    scanner,
+                    cursor,
+                    history,
+                    SCORES.get(config["score_version"]),
+                    features,
+                    markets=markets,
                 )
-                rows.append(
-                    dict(
-                        symbol=symbol,
-                        features=f,
-                        momentum=momentum,
-                        auto_eligible=symbol in {m.symbol for m in markets},
-                        **computed,
+                history = trim(history, cursor)
+            else:
+                markets = universe.ranked(cursor)
+                held = {
+                    p.symbol for v in variants for p in v.ledger.portfolio.positions()
+                }
+                by_symbol = {m.symbol: m for m in markets}
+                for symbol in held:
+                    if symbol not in by_symbol:
+                        m = universe.market(symbol, cursor)
+                        if m:
+                            by_symbol[symbol] = m
+                self.profile["universe_seconds"] += time.perf_counter() - began_scan
+                began_indicators = time.perf_counter()
+                rows = []
+                for symbol, market in by_symbol.items():
+                    observed = [c for c, qv in universe.as_of(symbol, cursor)]
+                    assert all(c.close_time < clock.now_ms for c in observed)
+                    f = features(observed, market, scanner)
+                    computed = SCORES.get(config["score_version"])(f, scanner)
+                    past = history[symbol]
+                    momentum = score_momentum(
+                        computed["total_score"],
+                        at(cursor),
+                        past,
+                        scanner.momentum_windows,
+                        scanner.history_tolerance_minutes,
                     )
-                )
-                past.append(
-                    SimpleNamespace(
-                        timestamp=at(cursor), total_score=computed["total_score"]
+                    rows.append(
+                        dict(
+                            symbol=symbol,
+                            features=f,
+                            momentum=momentum,
+                            auto_eligible=symbol in {m.symbol for m in markets},
+                            **computed,
+                        )
                     )
+                    past.append(
+                        SimpleNamespace(
+                            timestamp=at(cursor), total_score=computed["total_score"]
+                        )
+                    )
+                history = {
+                    s: [r for r in rs if ms(r.timestamp) >= cursor - 26 * 3600000]
+                    for s, rs in history.items()
+                }
+                history = defaultdict(list, {s: rs for s, rs in history.items() if rs})
+                watch = select_watchlist(rows, scanner)
+                btc = next((r for r in rows if r["symbol"] == "BTCUSDT"), None)
+                btc_source = (
+                    universe.as_of("BTCUSDT", cursor)[-1][0].close_time if btc else None
                 )
-            history = {
-                s: [r for r in rs if ms(r.timestamp) >= cursor - 26 * 3600000]
-                for s, rs in history.items()
-            }
-            history = defaultdict(list, {s: rs for s, rs in history.items() if rs})
-            watch = select_watchlist(rows, scanner)
-            btc = next((r for r in rows if r["symbol"] == "BTCUSDT"), None)
-            btc_source = (
-                universe.as_of("BTCUSDT", cursor)[-1][0].close_time if btc else None
-            )
-            for row in rows:
-                row["btc_regime_source_timestamp"] = (
-                    at(btc_source).isoformat() + "Z" if btc_source is not None else None
-                )
-                row["btc_regime"] = (
-                    "BULLISH"
-                    if btc and btc["features"]["ema50"] > btc["features"]["ema200"]
-                    else "BEARISH"
-                    if btc
-                    else "UNKNOWN"
-                )
+                for row in rows:
+                    row["btc_regime_source_timestamp"] = (
+                        at(btc_source).isoformat() + "Z"
+                        if btc_source is not None
+                        else None
+                    )
+                    row["btc_regime"] = (
+                        "BULLISH"
+                        if btc and btc["features"]["ema50"] > btc["features"]["ema200"]
+                        else "BEARISH"
+                        if btc
+                        else "UNKNOWN"
+                    )
             self.profile["indicator_score_seconds"] += (
                 time.perf_counter() - began_indicators
             )
@@ -853,7 +906,20 @@ class ReplayEngine:
             self.store.update(run_id, status="RUNNING", heartbeat=time.time())
             wanted = set()
             for v in variants:
-                wanted |= v.signals(rows, watch, cursor)
+                if isolated:
+                    local_rows = current_frame.rows() + exit_rows(
+                        current_frame,
+                        universe,
+                        scanner,
+                        cursor,
+                        history,
+                        SCORES.get(config["score_version"]),
+                        features,
+                        v.ledger.portfolio.positions(),
+                    )
+                    wanted |= v.signals(local_rows, current_frame.watch(), cursor)
+                else:
+                    wanted |= v.signals(rows, watch, cursor)
             cache_began = time.perf_counter()
             datasets = {}
             for symbol in wanted:
@@ -968,6 +1034,7 @@ class ReplayEngine:
             )
             checkpoint = dict(
                 next_time=cursor,
+                **({"market_context_version": mode} if isolated else {}),
                 source_objects=sorted(self.provider.used),
                 score_history={
                     s: [
@@ -1007,7 +1074,7 @@ class ReplayEngine:
             # Read the persisted audit too, so pre-observability checkpoints resume
             # without discarding the already-counted rejection reasons.
             result.update(self.store.blocked_entry_details(run_id, i, v.blocked))
-            if institutional:
+            if (institutional and not isolated) or v.research_reporting:
                 research_metrics, research_breakdowns = research_summary(trades)
                 result.update(research_metrics)
                 result.update(

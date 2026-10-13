@@ -10,6 +10,7 @@ from pathlib import Path
 
 from crypto_bot.monitoring.service import build_info
 from crypto_bot.replay.config import config_hash
+from crypto_bot.replay.market_context import version as context_version
 from crypto_bot.replay.rejections import from_audit
 from crypto_bot.replay.stale import STRICT
 
@@ -80,6 +81,7 @@ class ReplayStore:
             git_branch=info["git_branch"],
             config_hash=config_hash(config),
             replay_schema_version=1,
+            market_context_version=context_version(config),
             strict_no_lookahead=True,
             stale_position_policy=config.get("stale_position_policy", STRICT),
             historical_data_revision={},

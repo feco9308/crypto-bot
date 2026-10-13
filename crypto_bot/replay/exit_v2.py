@@ -135,7 +135,7 @@ def evaluation(configs, results):
     warnings = []
     for i, result in enumerate(results):
         m = result["metrics"]
-        if i == baseline:
+        if i == baseline or "turnover_notional" not in m:
             continue
         flags = []
         if m["trade_count"] >= 1.5 * control["trade_count"] and control["trade_count"]:

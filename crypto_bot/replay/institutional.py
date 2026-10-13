@@ -140,8 +140,9 @@ def resample(rows, hours):
 
 
 class InstitutionalContext:
-    def __init__(self, histories):
+    def __init__(self, histories, trading_start=None):
         self.histories = histories
+        self.trading_start = trading_start
 
     @lru_cache(maxsize=512)
     def series(self, symbol, hours):
@@ -154,7 +155,13 @@ class InstitutionalContext:
         end = bisect_left(rows.columns[1], now)
         # Match existing hourly EMA window; use the same finite 499 completed
         # higher-timeframe window (minimum slow-period observations).
-        candles = [c for c, _ in rows[max(0, end - 499) : end]]
+        begin = max(0, end - 499)
+        if self.trading_start is not None:
+            # Match the standalone strategy's own slow-EMA warmup, not a
+            # companion's longer raw-data load or correlation requirement.
+            first = self.trading_start - (slow + 1) * 24 * HOUR
+            begin = max(begin, bisect_left(rows.columns[0], first))
+        candles = [c for c, _ in rows[begin:end]]
         fresh = (
             bool(candles)
             and candles[-1].close_time == (now // (hours * HOUR)) * (hours * HOUR) - 1

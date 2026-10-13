@@ -397,6 +397,9 @@ def test_mixed_run_preserves_control_core_results_and_btc_context(tmp_path):
             ]
         }
     )
+    # Existing legacy snapshots retain their original mixed reporting semantics.
+    base.pop("market_context_version", None)
+    mixed.pop("market_context_version", None)
     store = ReplayStore(tmp_path / "replay.db")
     first = store.create(base)
     second = store.create(mixed)
