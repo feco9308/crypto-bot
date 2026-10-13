@@ -20,6 +20,7 @@ from crypto_bot.replay.exporter import bundle, csv_export, payload
 from crypto_bot.replay.models import ReplayStore
 from crypto_bot.replay.registry import STRATEGIES
 from crypto_bot.replay.research import exit_choices
+from crypto_bot.replay.research_exporter import ReadOnlyReplayStore, research_bundle
 from crypto_bot.replay.stale import WARNING
 from crypto_bot.web.shadow import register_shadow
 
@@ -233,11 +234,43 @@ def register_replay(app, production_database):
             source="REPLAY_LOCAL_CACHE_VISUALIZATION_ONLY",
         )
 
+    def export_store():
+        export_root = Path(os.getenv("REPLAY_DATA_DIR", str(root)))
+        if not export_root.is_dir():
+            abort(404, "Replay run not found")
+        database, _ = isolated_paths(
+            export_root,
+            production if production and production != ":memory:" else None,
+        )
+        if not database.is_file():
+            abort(404, "Replay run not found")
+        return ReadOnlyReplayStore(database)
+
+    @app.get("/api/replay/runs/<run_id>/research-bundle.zip")
+    def replay_research_export(run_id):
+        try:
+            body = research_bundle(export_store(), run_id)
+        except KeyError:
+            abort(404, "Replay run not found")
+        except ValueError as exc:
+            abort(409, str(exc))
+        return Response(
+            body,
+            content_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="replay-research-{run_id}.zip"',
+                "Cache-Control": "no-store",
+            },
+        )
+
     @app.get("/api/replay/runs/<run_id>/export.<format>")
     def replay_export(run_id, format):
-        value = run(run_id)
+        db = export_store()
+        try:
+            value = db.get(run_id)
+        except KeyError:
+            abort(404, "Replay run not found")
         index = variant(value)
-        db, _ = store()
         if value["status"] != "COMPLETED":
             abort(409, "Replay export requires a completed run")
         import json

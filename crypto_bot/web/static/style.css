@@ -29,3 +29,6 @@ main,section,.table-scroll{min-width:0;box-sizing:border-box}section{max-width:1
 #replay-stale-warning,#replay-compare-stale-warning{border:2px solid #ff8686;background:#3d2029;color:#ffd8de;padding:1rem;font-weight:700;overflow-wrap:anywhere}
 
 #replay-trade-summary dt{overflow-wrap:anywhere}
+
+.research-export-button{display:inline-flex;box-sizing:border-box;max-width:100%;padding:12px 18px;border:1px solid #71d4dc;border-radius:6px;background:#173b45;color:#e2ffff;text-align:center;white-space:normal;overflow-wrap:anywhere;font-weight:700;text-decoration:none}.research-export-button:focus-visible{outline:3px solid #efbd72;outline-offset:3px}.research-export-button[aria-disabled=true]{opacity:.5;pointer-events:none}
+@media(max-width:700px){.research-export-button{display:flex;width:100%;justify-content:center}}
