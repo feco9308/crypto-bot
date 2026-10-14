@@ -18,8 +18,24 @@ FILTER_DEFAULTS = dict(
 
 
 ENTRY_FILTER_FIELDS = dict(
-    min_delta_4h=None, min_atr_pct=None, max_atr_pct=None, max_range_position=None
+    min_delta_4h=None,
+    min_atr_pct=None,
+    max_atr_pct=None,
+    max_range_position=None,
+    max_relative_volume=None,
 )
+VOLUME_FILTER_REASONS = (
+    "ENTRY_RELATIVE_VOLUME_ABOVE_MAX",
+    "ENTRY_RELATIVE_VOLUME_UNAVAILABLE",
+)
+
+
+def entry_filter_reason_keys(bounds):
+    return ENTRY_FILTER_REASONS + (
+        VOLUME_FILTER_REASONS if bounds.get("max_relative_volume") is not None else ()
+    )
+
+
 ENTRY_FILTER_REASONS = (
     "ENTRY_DELTA_4H_BELOW_MIN",
     "ENTRY_ATR_PCT_BELOW_MIN",
@@ -79,6 +95,12 @@ def entry_filter_reasons(row, bounds):
             "max_range_position",
             row.get("features", {}).get("range_position"),
             "ENTRY_RANGE_POSITION",
+        ),
+        (
+            None,
+            "max_relative_volume",
+            row.get("features", {}).get("relative_volume"),
+            "ENTRY_RELATIVE_VOLUME",
         ),
     ):
         lo, hi = bounds.get(minimum), bounds.get(maximum)

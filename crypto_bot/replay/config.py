@@ -199,6 +199,14 @@ def variant(value, index=0):
         if bounds.get(key) is not None and D(bounds[key]) < 0:
             invalid(f"{path}.entry_filter.{key}", "ATR percentage must be non-negative")
     if (
+        bounds.get("max_relative_volume") is not None
+        and D(bounds["max_relative_volume"]) < 0
+    ):
+        invalid(
+            f"{path}.entry_filter.max_relative_volume",
+            "Relative volume maximum must be non-negative",
+        )
+    if (
         bounds.get("max_range_position") is not None
         and not 0 <= D(bounds["max_range_position"]) <= 1
     ):

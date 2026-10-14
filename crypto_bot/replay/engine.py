@@ -35,11 +35,11 @@ from crypto_bot.replay.portfolio import MemoryLedger
 from crypto_bot.replay.registry import SCORES, STRATEGIES
 from crypto_bot.replay.rejections import legacy_group, reason_key
 from crypto_bot.replay.research import (
-    ENTRY_FILTER_REASONS,
     NAME,
     RESEARCH_EXITS,
     adaptive,
     entry_filter_active,
+    entry_filter_reason_keys,
     entry_filter_reasons,
     gate_state,
     save_adaptive,
@@ -247,6 +247,10 @@ class Variant:
                     if entry_filter_active(bounds)
                     else {}
                 )
+                if bounds.get("max_relative_volume") is not None:
+                    entry_audit["relative_volume"] = row.get("features", {}).get(
+                        "relative_volume"
+                    )
                 if failed:
                     self.block_entry(signal, "RESEARCH_ENTRY_FILTER_BLOCK")
                     self.event(
@@ -1108,7 +1112,9 @@ class ReplayEngine:
                         passed_filter_count=0,
                         blocked_filter_count=0,
                         block_rate_pct=None,
-                        reason_counts=dict.fromkeys(ENTRY_FILTER_REASONS, 0),
+                        reason_counts=dict.fromkeys(
+                            entry_filter_reason_keys(v.config["entry_filter"]), 0
+                        ),
                         source="STORED_AUDIT_EVENTS",
                         scope="Strategy BUYs reaching entry filter before risk/execution",
                     ),

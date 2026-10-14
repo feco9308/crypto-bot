@@ -2,7 +2,7 @@
 
 from collections import Counter
 
-from crypto_bot.replay.research import ENTRY_FILTER_REASONS
+from crypto_bot.replay.research import ENTRY_FILTER_REASONS, VOLUME_FILTER_REASONS
 
 # Exact existing RiskManager/replay strings. This mapping never gates a trade.
 CATEGORIES = {
@@ -77,12 +77,16 @@ def from_audit(events, blocked):
     btc_blocks = Counter()
     filter_blocks = Counter()
     entry_attempts = Counter()
+    volume_filter = False
     for event in events:
         kind, symbol = event["event"], event["symbol"]
         if (
             kind in ("RESEARCH_ENTRY_FILTER_PASS", "RESEARCH_ENTRY_FILTER_BLOCK")
             and event.get("filter_thresholds") is not None
         ):
+            volume_filter |= (
+                event["filter_thresholds"].get("max_relative_volume") is not None
+            )
             entry_attempts[
                 "passed" if kind == "RESEARCH_ENTRY_FILTER_PASS" else "blocked"
             ] += 1
@@ -128,7 +132,8 @@ def from_audit(events, blocked):
         )
     }
     if entry_attempts:
-        specific = {key: filter_blocks[key] for key in ENTRY_FILTER_REASONS}
+        keys = ENTRY_FILTER_REASONS + (VOLUME_FILTER_REASONS if volume_filter else ())
+        specific = {key: filter_blocks[key] for key in keys}
         result["research_entry_filter_blocks"].update(specific)
         attempted = sum(entry_attempts.values())
         result["entry_filter_diagnostics"] = dict(
