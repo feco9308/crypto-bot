@@ -3,6 +3,7 @@
 import hashlib
 import io
 import json
+import re
 import sqlite3
 import zipfile
 from contextlib import contextmanager
@@ -51,6 +52,17 @@ def letter(index):
     return label
 
 
+def variant_labels(variants):
+    """Keep explicit research labels (A/F/G/H); otherwise use stable indices."""
+    matches = [
+        re.match(r"^([A-Z])(?:$|\s*[-–—]\s)", v["config"]["name"]) for v in variants
+    ]
+    labels = [m[1] for m in matches if m]
+    if len(labels) == len(variants) and len(set(labels)) == len(labels):
+        return labels
+    return [letter(i) for i in range(len(variants))]
+
+
 def stats(trades, key):
     values = [float(t[key]) for t in trades if t.get(key) is not None]
     return {
@@ -81,10 +93,11 @@ def research_files(store, run_id):
     variants = []
     counts = []
     coverage = []
+    labels = variant_labels(run["variants"])
     for index, variant in enumerate(run["variants"]):
         if variant["number"] != index or variant["config"] != cfg["variants"][index]:
             raise ValueError("Stored replay variant configuration mismatch")
-        label = letter(index)
+        label = labels[index]
         full = payload(store, run_id, index)
         compact = payload(store, run_id, index, True)
         trades = sorted(

@@ -14,7 +14,11 @@ from crypto_bot.replay.config import validate
 from crypto_bot.replay.engine import ReplayEngine
 from crypto_bot.replay.exporter import bundle, payload
 from crypto_bot.replay.models import ReplayStore
-from crypto_bot.replay.research_exporter import ReadOnlyReplayStore, research_bundle
+from crypto_bot.replay.research_exporter import (
+    ReadOnlyReplayStore,
+    research_bundle,
+    variant_labels,
+)
 
 
 @pytest.fixture
@@ -113,8 +117,8 @@ def test_existing_variant_links_and_bundle_still_work(research_case):
     page = client.get(f"/replay/runs/{rid}?variant=4").get_data(as_text=True)
     assert "DOWNLOAD VARIANT BUNDLE" in page and "DOWNLOAD FULL BUNDLE" not in page
     assert (
-        page.index("RESEARCH EXPORT")
-        < page.index("Run Progress")
+        page.index("Run Progress")
+        < page.index("RESEARCH EXPORT")
         < page.index("Variant / Results")
     )
     for suffix in ["json", "compact.json", "csv", "zip"]:
@@ -167,3 +171,67 @@ def test_export_does_not_initialize_missing_replay_storage(
     assert client.get("/api/replay/runs/unknown/research-bundle.zip").status_code == 404
     assert client.get("/api/replay/runs/unknown/export.zip").status_code == 404
     assert not root.exists()
+
+
+def test_entry_validation_bundle_afgh_uses_only_requested_run(request):
+    from test_institutional_entry_v1 import small_run
+
+    client, writable, _ = request.getfixturevalue("web_case")
+    request.getfixturevalue("controlled")
+    store, rid = small_run(writable.path.parent, list("AFGH"))
+    _, foreign = execute(writable.path.parent, list("ABCDE"))
+    before = store.path.read_bytes()
+    response = client.get(f"/api/replay/runs/{rid}/research-bundle.zip?variant=3")
+    assert response.status_code == 200
+    z = opened(response.data)
+    expected = {
+        "manifest.json",
+        "run-summary.json",
+        "config.json",
+        "validated-config.json",
+        "export-validation.json",
+        "run-metadata.json",
+        "comparison.json",
+    } | {
+        f"{label}.{kind}.json"
+        for label in "AFGH"
+        for kind in ("analysis", "compact", "trades")
+    }
+    assert set(z.namelist()) == expected
+    for name in z.namelist():
+        assert foreign not in z.read(name).decode()
+    for i, label in enumerate("AFGH"):
+        full = json.loads(z.read(label + ".analysis.json"))
+        compact = json.loads(z.read(label + ".compact.json"))
+        trades = json.loads(z.read(label + ".trades.json"))
+        assert full == payload(ReadOnlyReplayStore(store.path), rid, i)
+        assert compact == payload(ReadOnlyReplayStore(store.path), rid, i, True)
+        assert trades["run_id"] == rid and trades["variant"] == i
+        assert trades["variant_label"] == label
+    summary = json.loads(z.read("run-summary.json"))
+    assert [v["variant_label"] for v in summary["variants"]] == list("AFGH")
+    assert set(summary["comparisons"]) == {
+        "A_vs_F",
+        "A_vs_G",
+        "A_vs_H",
+        "F_vs_G",
+        "F_vs_H",
+        "G_vs_H",
+    }
+    assert store.path.read_bytes() == before and len(store.runs()) == 2
+
+
+@pytest.mark.parametrize(
+    "names", [["F", "F"], ["Unnamed", "F"], ["../A", "G"], ["Alpha", "Gamma"]]
+)
+def test_ambiguous_labels_fall_back_to_safe_unique_indices(names):
+    assert variant_labels([{"config": {"name": n}} for n in names]) == ["A", "B"]
+
+
+def test_explicit_study_labels_are_retained():
+    assert variant_labels(
+        [
+            {"config": {"name": n}}
+            for n in ["A - Control", "F - Delta", "G — ATR", "H – Range"]
+        ]
+    ) == list("AFGH")
