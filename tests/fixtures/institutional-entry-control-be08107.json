@@ -1,0 +1,484 @@
+{
+  "core": {
+    "cash": "995.412880972104",
+    "curve": [
+      {
+        "cash": "1000",
+        "drawdown_pct": 0.0,
+        "equity": "1000.000000000000",
+        "exposure": "0",
+        "max_drawdown": "0",
+        "time": 1704067200000,
+        "timestamp": "2024-01-01T00:00:00Z"
+      },
+      {
+        "cash": "1000",
+        "drawdown_pct": 0.0,
+        "equity": "1000.000000000000",
+        "exposure": "0",
+        "max_drawdown": "0E-12",
+        "time": 1704070800000,
+        "timestamp": "2024-01-01T01:00:00Z"
+      },
+      {
+        "cash": "1000",
+        "drawdown_pct": 0.0,
+        "equity": "1000.000000000000",
+        "exposure": "0",
+        "max_drawdown": "0E-12",
+        "time": 1704074400000,
+        "timestamp": "2024-01-01T02:00:00Z"
+      },
+      {
+        "cash": "1000",
+        "drawdown_pct": 0.0,
+        "equity": "1000.000000000000",
+        "exposure": "0",
+        "max_drawdown": "0E-12",
+        "time": 1704078000000,
+        "timestamp": "2024-01-01T03:00:00Z"
+      },
+      {
+        "cash": "1000",
+        "drawdown_pct": 0.0,
+        "equity": "1000.000000000000",
+        "exposure": "0",
+        "max_drawdown": "0E-12",
+        "time": 1704081600000,
+        "timestamp": "2024-01-01T04:00:00Z"
+      },
+      {
+        "cash": "1000",
+        "drawdown_pct": 0.0,
+        "equity": "1000.000000000000",
+        "exposure": "0",
+        "max_drawdown": "0E-12",
+        "time": 1704085200000,
+        "timestamp": "2024-01-01T05:00:00Z"
+      },
+      {
+        "cash": "1000",
+        "drawdown_pct": 0.0,
+        "equity": "1000.000000000000",
+        "exposure": "0",
+        "max_drawdown": "0E-12",
+        "time": 1704088800000,
+        "timestamp": "2024-01-01T06:00:00Z"
+      },
+      {
+        "cash": "800.000000000088",
+        "drawdown_pct": 0.0299650374612,
+        "equity": "999.700349625388",
+        "exposure": "199.700349625300",
+        "max_drawdown": "0.029965037461",
+        "time": 1704092400000,
+        "timestamp": "2024-01-01T07:00:00Z"
+      },
+      {
+        "cash": "800.000000000088",
+        "drawdown_pct": 0.0299650374612,
+        "equity": "999.700349625388",
+        "exposure": "199.700349625300",
+        "max_drawdown": "0.029965037461",
+        "time": 1704096000000,
+        "timestamp": "2024-01-01T08:00:00Z"
+      },
+      {
+        "cash": "800.000000000088",
+        "drawdown_pct": 0.0299650374612,
+        "equity": "999.700349625388",
+        "exposure": "199.700349625300",
+        "max_drawdown": "0.029965037461",
+        "time": 1704099600000,
+        "timestamp": "2024-01-01T09:00:00Z"
+      },
+      {
+        "cash": "800.000000000088",
+        "drawdown_pct": 0.0299650374612,
+        "equity": "999.700349625388",
+        "exposure": "199.700349625300",
+        "max_drawdown": "0.029965037461",
+        "time": 1704103200000,
+        "timestamp": "2024-01-01T10:00:00Z"
+      },
+      {
+        "cash": "800.000000000088",
+        "drawdown_pct": 0.0299650374612,
+        "equity": "999.700349625388",
+        "exposure": "199.700349625300",
+        "max_drawdown": "0.029965037461",
+        "time": 1704106800000,
+        "timestamp": "2024-01-01T11:00:00Z"
+      },
+      {
+        "cash": "995.412880972104",
+        "drawdown_pct": 0.4587119027896,
+        "equity": "995.412880972104",
+        "exposure": "0",
+        "max_drawdown": "0.458711902789",
+        "time": 1704110400000,
+        "timestamp": "2024-01-01T12:00:00Z"
+      },
+      {
+        "cash": "995.412880972104",
+        "drawdown_pct": 0.4587119027896,
+        "equity": "995.412880972104",
+        "exposure": "0",
+        "max_drawdown": "0.458711902789",
+        "time": 1704114000000,
+        "timestamp": "2024-01-01T13:00:00Z"
+      },
+      {
+        "cash": "995.412880972104",
+        "drawdown_pct": 0.4587119027896,
+        "equity": "995.412880972104",
+        "exposure": "0",
+        "max_drawdown": "0.458711902789",
+        "time": 1704117600000,
+        "timestamp": "2024-01-01T14:00:00Z"
+      }
+    ],
+    "equity": "995.412880972104",
+    "fills": [
+      {
+        "execution_time": "2024-01-01T06:00:00Z",
+        "fee": "0.199800199800",
+        "fill_price": "100.050000000000",
+        "notional": "199.800199800112",
+        "order_id": 1,
+        "position_id": 1,
+        "quantity": "1.997003496253",
+        "reason": "STRATEGY",
+        "reference_price": "100",
+        "side": "BUY",
+        "signal_time": "2024-01-01T06:00:00Z",
+        "slippage": "0.099850174812",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "source_timeframe": "1m",
+        "status": "FILLED",
+        "symbol": "NEARUSDT",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      },
+      {
+        "execution_time": "2024-01-01T11:01:00Z",
+        "fee": "0.195608489461",
+        "fill_price": "97.951000000000",
+        "notional": "195.608489461477",
+        "order_id": 2,
+        "position_id": 1,
+        "quantity": "1.997003496253",
+        "reason": "ORIGINAL_STOP",
+        "reference_price": "98",
+        "side": "SELL",
+        "signal_time": "2024-01-01T11:01:00Z",
+        "slippage": "0.097853171316",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "source_timeframe": "1m",
+        "status": "FILLED",
+        "symbol": "NEARUSDT",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      }
+    ],
+    "orders": [
+      {
+        "execution_time": "2024-01-01T06:00:00Z",
+        "fee": "0.199800199800",
+        "fill_price": "100.050000000000",
+        "notional": "199.800199800112",
+        "order_id": 1,
+        "position_id": 1,
+        "quantity": "1.997003496253",
+        "reason": "STRATEGY",
+        "reference_price": "100",
+        "side": "BUY",
+        "signal_time": "2024-01-01T06:00:00Z",
+        "slippage": "0.099850174812",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "source_timeframe": "1m",
+        "status": "FILLED",
+        "symbol": "NEARUSDT",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      },
+      {
+        "execution_time": "2024-01-01T11:01:00Z",
+        "fee": "0.195608489461",
+        "fill_price": "97.951000000000",
+        "notional": "195.608489461477",
+        "order_id": 2,
+        "position_id": 1,
+        "quantity": "1.997003496253",
+        "reason": "ORIGINAL_STOP",
+        "reference_price": "98",
+        "side": "SELL",
+        "signal_time": "2024-01-01T11:01:00Z",
+        "slippage": "0.097853171316",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "source_timeframe": "1m",
+        "status": "FILLED",
+        "symbol": "NEARUSDT",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      }
+    ],
+    "trades": [
+      {
+        "algorithm_watch": true,
+        "asset_group": "ALT",
+        "atr": 1,
+        "atr_pct": 1,
+        "btc_regime": "UNKNOWN",
+        "btc_regime_entry_gate": "OFF",
+        "btc_regime_source_timestamp": null,
+        "capital_locked_by_stale_positions": "0",
+        "delta_1h": 2.6000000000000085,
+        "delta_24h": 2.6000000000000085,
+        "delta_4h": 2.6000000000000085,
+        "duration_seconds": 18060.0,
+        "ema200": 100,
+        "ema50": 101,
+        "entry_drift_atr": 0.0,
+        "entry_drift_pct": 0.0,
+        "entry_fee": "0.199800199800",
+        "entry_fill_price": "100.050000000000",
+        "entry_price": "100.050000000000",
+        "entry_reference_price": "100",
+        "entry_score": 76.4,
+        "entry_time": "2024-01-01T06:00:00Z",
+        "exit_fee": "0.195608489461",
+        "exit_policy": "baseline_v1",
+        "exit_price": "97.951000000000",
+        "exit_reason": "ORIGINAL_STOP",
+        "exit_time": "2024-01-01T11:01:00Z",
+        "exposure_locked_by_stale_positions": "0",
+        "fees": "0.395408689261",
+        "final_stop_price": "98",
+        "first_stale_time": null,
+        "institutional_btc_regime": "BULL",
+        "institutional_context": {
+          "btc": {
+            "regime": "BULL",
+            "risk_multiplier": "1",
+            "trends": {
+              "1d": {
+                "ema_fast": 298.8223940833695,
+                "ema_slow": 295.86835053997765,
+                "fresh": true,
+                "observations": 201,
+                "ready": true,
+                "source_timestamp": "2023-12-31T23:59:59.999000Z"
+              },
+              "4h": {
+                "ema_fast": 299.81000000043656,
+                "ema_slow": 299.2154715267194,
+                "fresh": true,
+                "observations": 499,
+                "ready": true,
+                "source_timestamp": "2024-01-01T03:59:59.999000Z"
+              }
+            }
+          },
+          "coin_trends": {
+            "1d": {
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765,
+              "fresh": true,
+              "observations": 201,
+              "ready": true,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z"
+            },
+            "1h": {
+              "ema_fast": 299.9610000001091,
+              "ema_slow": 299.81236788167973,
+              "fresh": true,
+              "observations": 499,
+              "ready": true,
+              "source_timestamp": "2024-01-01T05:59:59.999000Z"
+            },
+            "4h": {
+              "ema_fast": 299.81000000043656,
+              "ema_slow": 299.2154715267194,
+              "fresh": true,
+              "observations": 499,
+              "ready": true,
+              "source_timestamp": "2024-01-01T03:59:59.999000Z"
+            }
+          },
+          "correlation": {
+            "blocked": false,
+            "enabled": true,
+            "insufficient_policy": "INSUFFICIENT_DATA_ALLOW",
+            "pairs": []
+          },
+          "decision_time": "2024-01-01T06:00:00Z"
+        },
+        "intrabar_ambiguity": false,
+        "last_valid_mark_price": "100",
+        "last_valid_mark_time": "2024-01-01T11:01:00Z",
+        "mae_abs_pct": 2.048975512243878,
+        "mae_pct": -2.048975512243878,
+        "mae_r": 0.89246804855561,
+        "maximum_high_since_entry": "100.1",
+        "maximum_reached_r": 0.021767513379405124,
+        "maximum_unrealized_profit": "-0.399700149924",
+        "mfe_abs_pct": 0.04997501249375312,
+        "mfe_pct": 0.04997501249375312,
+        "mfe_r": 0.021767513379405124,
+        "momentum": 1,
+        "notional": "199.800199800112",
+        "original_stop_price": "98",
+        "peak_to_exit_giveback_pct": null,
+        "peak_to_exit_giveback_percentage_points": 2.093709438986921,
+        "peak_to_exit_giveback_r": 0.9128646657099428,
+        "portfolio_at_decision": {
+          "cash_balance": "1000",
+          "daily_pnl": "0E-12",
+          "day_start_equity": "1000",
+          "equity": "1000.000000000000",
+          "fees_paid": "0",
+          "max_drawdown": "0E-12",
+          "peak_equity": "1000",
+          "positions": [],
+          "realized_pnl": "0",
+          "reserved_cash": "0",
+          "stale_exposure_reservation": "0"
+        },
+        "position_id": 1,
+        "quantity": "1.997003496253",
+        "quarantined": false,
+        "r_multiple": -1.0,
+        "range_position": 0.5,
+        "realized_pnl": "-4.587119027896",
+        "realized_profit": "-4.587119027896",
+        "relative_volume": 1.5,
+        "research_exit_stage": "INITIAL_STOP",
+        "resumed_after_stale": false,
+        "return_pct": -2.2935595139490093,
+        "risk_amount": "4.587119027896",
+        "risk_decision": {
+          "approved": true,
+          "position_notional": "199.800199800112",
+          "quantity": "1.997003496253",
+          "reasons": [
+            "approved within all limits",
+            "size capped by exposure or available cash"
+          ],
+          "requested_symbol": "NEARUSDT",
+          "risk_amount": "4.587119027896",
+          "stop_distance_pct": "2.048975512243"
+        },
+        "risk_multiplier": "1",
+        "risk_reasons": [
+          "approved within all limits",
+          "size capped by exposure or available cash"
+        ],
+        "rsi": 55,
+        "scanner_snapshot_timestamp": "2024-01-01T06:00:00Z",
+        "score_components": {
+          "fixed": 76.4
+        },
+        "score_reasons": [
+          "fixed source"
+        ],
+        "slippage": "0.197703346128",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "stale": false,
+        "stale_duration_seconds": 0,
+        "stale_state": {
+          "first_stale_time": null,
+          "last_valid_mark_price": "100",
+          "last_valid_mark_time": "2024-01-01T11:01:00Z",
+          "quarantined": false,
+          "resumed_after_stale": false,
+          "stale": false,
+          "stale_duration_seconds": 0,
+          "stale_since": null
+        },
+        "status": "CLOSED",
+        "stop_price": "98",
+        "strategy_name": "institutional_style_v1",
+        "strategy_reasons": [
+          "MULTITF_BULLISH",
+          "BTC_BULL",
+          "SCORE_AND_MOMENTUM_APPROVED"
+        ],
+        "symbol": "NEARUSDT",
+        "take_profit_price": null,
+        "trail_activation_timestamp": null,
+        "unrealized_pnl": "0"
+      }
+    ]
+  },
+  "public_config": {
+    "candidate_symbols": [
+      "NEARUSDT",
+      "OPUSDT"
+    ],
+    "conservative": true,
+    "dataset_role": "EXPLORATION",
+    "end": "2024-01-01T14:00:00Z",
+    "fallback_5m": false,
+    "minimum_quote_volume": "5000000",
+    "name": "Frozen institutional baseline parity fixture",
+    "spread_approximation_pct": "0.02",
+    "stale_position_policy": "RESEARCH_QUARANTINE_STALE",
+    "start": "2024-01-01T00:00:00Z",
+    "universe_size": 20,
+    "variants": [
+      {
+        "btc_regime_entry_gate": "OFF",
+        "entry_filter": {
+          "delta4h_max": null,
+          "delta4h_min": null,
+          "score_max": null,
+          "score_min": null
+        },
+        "exit_parameters": {},
+        "exit_policy": "baseline_v1",
+        "name": "A",
+        "risk_parameters": {
+          "daily_loss_limit_pct": "100",
+          "initial_paper_balance": "1000",
+          "max_drawdown_limit_pct": "100",
+          "max_open_positions": 3,
+          "max_symbol_exposure_pct": "20",
+          "max_total_exposure_pct": "50",
+          "minimum_order_value": "10",
+          "paper_fee_pct": "0.1",
+          "paper_slippage_pct": "0.05",
+          "pyramiding": false,
+          "risk_per_trade_pct": "0.5"
+        },
+        "strategy": "institutional_style_v1",
+        "strategy_parameters": {
+          "btc_bear_risk_multiplier": "0",
+          "btc_bull_risk_multiplier": "1",
+          "btc_neutral_risk_multiplier": "0.5",
+          "btc_regime_filter": true,
+          "correlation_filter_enabled": true,
+          "correlation_insufficient_policy": "INSUFFICIENT_DATA_ALLOW",
+          "correlation_lookback_hours": 168,
+          "correlation_min_observations": 120,
+          "delta_window": 4,
+          "ema_fast_period": 50,
+          "ema_slow_period": 200,
+          "exit_on_bearish_ema": true,
+          "exit_score": "45",
+          "max_position_correlation": "0.85",
+          "max_rsi": "70",
+          "max_spread_pct": "0.2",
+          "min_delta": "0",
+          "min_relative_volume": "1",
+          "min_rsi": "40",
+          "min_score": "70",
+          "require_1d_bullish": true,
+          "require_1h_bullish": true,
+          "require_4h_bullish": true,
+          "require_delta": true,
+          "require_watch": true,
+          "stop_atr_multiplier": "2"
+        }
+      }
+    ]
+  },
+  "source_anchor": "d3ba304b99cb4d8c918cbdbf6e884afb",
+  "source_sha": "be08107d11728a3e90c8ec3dbe351616074c5bf7"
+}

@@ -35,9 +35,11 @@ from crypto_bot.replay.portfolio import MemoryLedger
 from crypto_bot.replay.registry import SCORES, STRATEGIES
 from crypto_bot.replay.rejections import legacy_group, reason_key
 from crypto_bot.replay.research import (
+    ENTRY_FILTER_REASONS,
     NAME,
     RESEARCH_EXITS,
     adaptive,
+    entry_filter_active,
     entry_filter_reasons,
     gate_state,
     save_adaptive,
@@ -232,7 +234,19 @@ class Variant:
                 )
                 continue
             if signal.action == "BUY":
-                failed = entry_filter_reasons(row, self.config.get("entry_filter", {}))
+                bounds = self.config.get("entry_filter", {})
+                failed = entry_filter_reasons(row, bounds)
+                # Audit only for active new research fields. Neutral/legacy paths
+                # retain their exact old event stream and ledger behavior.
+                entry_audit = (
+                    dict(
+                        atr_pct=row.get("features", {}).get("atr_pct"),
+                        range_position=row.get("features", {}).get("range_position"),
+                        filter_thresholds=dict(bounds),
+                    )
+                    if entry_filter_active(bounds)
+                    else {}
+                )
                 if failed:
                     self.block_entry(signal, "RESEARCH_ENTRY_FILTER_BLOCK")
                     self.event(
@@ -245,8 +259,20 @@ class Variant:
                         delta_4h=row.get("momentum", {}).get("delta_4h"),
                         filter_reasons=failed,
                         original_strategy_decision=asdict(signal),
+                        **entry_audit,
                     )
                     continue
+                if entry_audit:
+                    self.event(
+                        "RESEARCH_ENTRY_FILTER_PASS",
+                        now,
+                        symbol=signal.symbol,
+                        action="BUY",
+                        score=str(context.score),
+                        delta_4h=row.get("momentum", {}).get("delta_4h"),
+                        original_strategy_decision=asdict(signal),
+                        **entry_audit,
+                    )
             # Adaptive research is stop-only, as in Shadow; gate never blocks SELL.
             if signal.action != "HOLD" and not (
                 self.config["exit_policy"] == NAME and signal.action == "SELL"
@@ -1074,6 +1100,19 @@ class ReplayEngine:
             # Read the persisted audit too, so pre-observability checkpoints resume
             # without discarding the already-counted rejection reasons.
             result.update(self.store.blocked_entry_details(run_id, i, v.blocked))
+            if entry_filter_active(v.config.get("entry_filter", {})):
+                result.setdefault(
+                    "entry_filter_diagnostics",
+                    dict(
+                        attempted_buy_count=0,
+                        passed_filter_count=0,
+                        blocked_filter_count=0,
+                        block_rate_pct=None,
+                        reason_counts=dict.fromkeys(ENTRY_FILTER_REASONS, 0),
+                        source="STORED_AUDIT_EVENTS",
+                        scope="Strategy BUYs reaching entry filter before risk/execution",
+                    ),
+                )
             if (institutional and not isolated) or v.research_reporting:
                 research_metrics, research_breakdowns = research_summary(trades)
                 result.update(research_metrics)

@@ -2,13 +2,15 @@
 
 from collections import Counter
 
+from crypto_bot.replay.research import ENTRY_FILTER_REASONS
+
 # Exact existing RiskManager/replay strings. This mapping never gates a trade.
 CATEGORIES = {
     "SETUP_NOT_REARMED": "setup_not_rearmed",
-    'BTC_BEAR_REGIME': 'btc_bear_regime',
-    'BTC_REGIME_UNAVAILABLE': 'btc_regime_unavailable',
-    'CORRELATION_LIMIT': 'correlation_limit',
-    'INSTITUTIONAL_CONTEXT_UNAVAILABLE': 'institutional_context_unavailable',
+    "BTC_BEAR_REGIME": "btc_bear_regime",
+    "BTC_REGIME_UNAVAILABLE": "btc_regime_unavailable",
+    "CORRELATION_LIMIT": "correlation_limit",
+    "INSTITUTIONAL_CONTEXT_UNAVAILABLE": "institutional_context_unavailable",
     "BTC_REGIME_ENTRY_BLOCK": "btc_regime_entry_block",
     "RESEARCH_ENTRY_FILTER_BLOCK": "research_entry_filter_block",
     "daily loss limit reached": "daily_loss",
@@ -74,8 +76,16 @@ def from_audit(events, blocked):
     reasons = Counter()
     btc_blocks = Counter()
     filter_blocks = Counter()
+    entry_attempts = Counter()
     for event in events:
         kind, symbol = event["event"], event["symbol"]
+        if (
+            kind in ("RESEARCH_ENTRY_FILTER_PASS", "RESEARCH_ENTRY_FILTER_BLOCK")
+            and event.get("filter_thresholds") is not None
+        ):
+            entry_attempts[
+                "passed" if kind == "RESEARCH_ENTRY_FILTER_PASS" else "blocked"
+            ] += 1
         if kind == "RESEARCH_ENTRY_FILTER_BLOCK":
             reasons[kind] += 1
             filter_blocks.update(event.get("filter_reasons", []))
@@ -107,12 +117,29 @@ def from_audit(events, blocked):
     result = details(reasons)
     result["research_entry_filter_block_count"] = reasons["RESEARCH_ENTRY_FILTER_BLOCK"]
     result["research_entry_filter_blocks"] = {
-        k: filter_blocks[k] for k in (
-            "SCORE_BELOW_MIN", "SCORE_ABOVE_MAX",
-            "DELTA4H_BELOW_MIN", "DELTA4H_ABOVE_MAX",
-            "SCORE_UNAVAILABLE", "DELTA4H_UNAVAILABLE",
+        k: filter_blocks[k]
+        for k in (
+            "SCORE_BELOW_MIN",
+            "SCORE_ABOVE_MAX",
+            "DELTA4H_BELOW_MIN",
+            "DELTA4H_ABOVE_MAX",
+            "SCORE_UNAVAILABLE",
+            "DELTA4H_UNAVAILABLE",
         )
     }
+    if entry_attempts:
+        specific = {key: filter_blocks[key] for key in ENTRY_FILTER_REASONS}
+        result["research_entry_filter_blocks"].update(specific)
+        attempted = sum(entry_attempts.values())
+        result["entry_filter_diagnostics"] = dict(
+            attempted_buy_count=attempted,
+            passed_filter_count=entry_attempts["passed"],
+            blocked_filter_count=entry_attempts["blocked"],
+            block_rate_pct=entry_attempts["blocked"] / attempted * 100,
+            reason_counts=specific | dict(filter_blocks),
+            source="STORED_AUDIT_EVENTS",
+            scope="Strategy BUYs reaching entry filter before risk/execution",
+        )
     result["btc_regime_entry_block_count"] = sum(btc_blocks.values())
     result["btc_regime_entry_blocks"] = {
         k: btc_blocks[k] for k in ("BEARISH", "UNKNOWN", "STALE")

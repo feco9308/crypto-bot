@@ -12,7 +12,12 @@ from crypto_bot.config.settings import Settings
 from crypto_bot.replay.clock import ms, utc
 from crypto_bot.replay.market_context import ISOLATED
 from crypto_bot.replay.registry import EXITS, STRATEGIES
-from crypto_bot.replay.research import FILTER_DEFAULTS, GATES, RESEARCH_EXITS
+from crypto_bot.replay.research import (
+    ENTRY_FILTER_FIELDS,
+    FILTER_DEFAULTS,
+    GATES,
+    RESEARCH_EXITS,
+)
 from crypto_bot.replay.stale import POLICIES, STRICT
 from crypto_bot.replay.symbols import valid_symbol
 from crypto_bot.trading.domain import D
@@ -169,7 +174,11 @@ def variant(value, index=0):
     if gate not in GATES:
         invalid(f"{path}.btc_regime_entry_gate", "Must be OFF or BULLISH_ONLY")
     bounds = value.get("entry_filter", {})
-    object_fields(bounds, FILTER_DEFAULTS, f"{path}.entry_filter")
+    object_fields(bounds, FILTER_DEFAULTS | ENTRY_FILTER_FIELDS, f"{path}.entry_filter")
+    # Neutral new fields are omitted, preserving old canonical snapshots/hashes.
+    bounds = {
+        k: v for k, v in bounds.items() if k not in ENTRY_FILTER_FIELDS or v is not None
+    }
     bounds = {
         k: at_field(f"{path}.entry_filter.{k}", lambda v=v: str(D(v)))
         if v is not None
@@ -186,6 +195,23 @@ def variant(value, index=0):
     for k, v in bounds.items():
         if k.startswith("score") and v is not None and not 0 <= D(v) <= 100:
             invalid(f"{path}.entry_filter.{k}", "Score bound must be between 0 and 100")
+    for key in ("min_atr_pct", "max_atr_pct"):
+        if bounds.get(key) is not None and D(bounds[key]) < 0:
+            invalid(f"{path}.entry_filter.{key}", "ATR percentage must be non-negative")
+    if (
+        bounds.get("max_range_position") is not None
+        and not 0 <= D(bounds["max_range_position"]) <= 1
+    ):
+        invalid(
+            f"{path}.entry_filter.max_range_position",
+            "Range position must be between 0 and 1",
+        )
+    lo, hi = bounds.get("min_atr_pct"), bounds.get("max_atr_pct")
+    if lo is not None and hi is not None and D(lo) > D(hi):
+        invalid(
+            f"{path}.entry_filter.max_atr_pct",
+            "Inclusive maximum must be at least minimum",
+        )
     errors = []
     try:
         definition = at_field(

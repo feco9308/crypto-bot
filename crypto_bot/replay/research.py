@@ -17,8 +17,26 @@ FILTER_DEFAULTS = dict(
 )
 
 
+ENTRY_FILTER_FIELDS = dict(
+    min_delta_4h=None, min_atr_pct=None, max_atr_pct=None, max_range_position=None
+)
+ENTRY_FILTER_REASONS = (
+    "ENTRY_DELTA_4H_BELOW_MIN",
+    "ENTRY_ATR_PCT_BELOW_MIN",
+    "ENTRY_ATR_PCT_ABOVE_MAX",
+    "ENTRY_RANGE_POSITION_ABOVE_MAX",
+    "ENTRY_DELTA_4H_UNAVAILABLE",
+    "ENTRY_ATR_PCT_UNAVAILABLE",
+    "ENTRY_RANGE_POSITION_UNAVAILABLE",
+)
+
+
+def entry_filter_active(bounds):
+    return any(bounds.get(key) is not None for key in ENTRY_FILTER_FIELDS)
+
+
 def entry_filter_reasons(row, bounds):
-    """Only the current scanner row; inclusive minima, exclusive maxima.
+    """Current scanner row only; legacy maxima exclusive, new maxima inclusive.
 
     Unavailable values fail closed only when their dimension is constrained.
     Reasons may overlap: one blocked opportunity can fail both dimensions.
@@ -41,6 +59,41 @@ def entry_filter_reasons(row, bounds):
             if lo is not None and value < D(lo):
                 reasons.append(label + "_BELOW_MIN")
             if hi is not None and value >= D(hi):
+                reasons.append(label + "_ABOVE_MAX")
+    # Entry Research v1 maxima are inclusive; existing maxima above stay exclusive.
+    for minimum, maximum, raw, label in (
+        (
+            "min_delta_4h",
+            None,
+            row.get("momentum", {}).get("delta_4h"),
+            "ENTRY_DELTA_4H",
+        ),
+        (
+            "min_atr_pct",
+            "max_atr_pct",
+            row.get("features", {}).get("atr_pct"),
+            "ENTRY_ATR_PCT",
+        ),
+        (
+            None,
+            "max_range_position",
+            row.get("features", {}).get("range_position"),
+            "ENTRY_RANGE_POSITION",
+        ),
+    ):
+        lo, hi = bounds.get(minimum), bounds.get(maximum)
+        if lo is None and hi is None:
+            continue
+        try:
+            value = D(raw) if raw is not None else None
+        except (ValueError, TypeError, DecimalException):
+            value = None
+        if value is None:
+            reasons.append(label + "_UNAVAILABLE")
+        else:
+            if lo is not None and value < D(lo):
+                reasons.append(label + "_BELOW_MIN")
+            if hi is not None and value > D(hi):
                 reasons.append(label + "_ABOVE_MAX")
     return reasons
 
