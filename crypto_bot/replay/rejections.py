@@ -6,6 +6,7 @@ from crypto_bot.replay.research import ENTRY_FILTER_REASONS, VOLUME_FILTER_REASO
 
 # Exact existing RiskManager/replay strings. This mapping never gates a trade.
 CATEGORIES = {
+    "ENTRY_NOT_FRESH_SETUP": "entry_not_fresh_setup",
     "SETUP_NOT_REARMED": "setup_not_rearmed",
     "BTC_BEAR_REGIME": "btc_bear_regime",
     "BTC_REGIME_UNAVAILABLE": "btc_regime_unavailable",
@@ -96,7 +97,7 @@ def from_audit(events, blocked):
         elif kind == "BTC_REGIME_ENTRY_BLOCK":
             reasons["BTC_REGIME_ENTRY_BLOCK"] += 1
             btc_blocks[event.get("btc_regime_state", "UNKNOWN")] += 1
-        elif kind == "SETUP_NOT_REARMED":
+        elif kind in ("SETUP_NOT_REARMED", "ENTRY_NOT_FRESH_SETUP"):
             reasons[kind] += 1
         elif kind == "ENTRY_FILL":
             held.add(symbol)

@@ -60,6 +60,7 @@ VARIANT_FIELDS = (
     "risk_parameters",
     "btc_regime_entry_gate",
     "setup_rearm",
+    "entry_admission",
     "entry_filter",
 )
 
@@ -124,13 +125,13 @@ def input_config(snapshot):
                 v.get(k, "OFF")
                 if k == "btc_regime_entry_gate"
                 else v.get(k, "OFF")
-                if k == "setup_rearm"
+                if k in ("setup_rearm", "entry_admission")
                 else v.get(k, FILTER_DEFAULTS)
                 if k == "entry_filter"
                 else v[k]
             )
             for k in VARIANT_FIELDS
-            if k != "setup_rearm" or k in v
+            if k not in ("setup_rearm", "entry_admission") or k in v
         }
         for v in snapshot["variants"]
     ]
@@ -228,6 +229,11 @@ def variant(value, index=0):
         )
     except ConfigValidationError as exc:
         errors.extend(exc.errors)
+    admission = value.get("entry_admission", "OFF")
+    if admission not in ("OFF", "fresh_setup_admission_v1"):
+        invalid(f"{path}.entry_admission", "Must be OFF or fresh_setup_admission_v1")
+    if admission != "OFF" and value.get("strategy") != "institutional_style_v1":
+        invalid(f"{path}.entry_admission", "Requires institutional_style_v1")
     rearm = value.get("setup_rearm", "OFF")
     if rearm not in ("OFF", "setup_rearm_v1"):
         invalid(f"{path}.setup_rearm", "Must be OFF or setup_rearm_v1")
@@ -367,6 +373,7 @@ def variant(value, index=0):
     snapshot = paper.public_dict()
     return dict(
         name=name,
+        **({"entry_admission": admission} if admission != "OFF" else {}),
         **({"setup_rearm": rearm} if rearm != "OFF" else {}),
         btc_regime_entry_gate=gate,
         entry_filter=bounds,

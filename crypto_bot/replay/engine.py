@@ -17,6 +17,7 @@ from crypto_bot.replay.execution import ReplayExecution
 from crypto_bot.replay.exit_v2 import DEFAULTS as V2_DEFAULTS
 from crypto_bot.replay.exit_v2 import STAGES, SetupRearm, evaluation
 from crypto_bot.replay.exits import levels, observe, policy
+from crypto_bot.replay.fresh_setup import FreshSetupAdmission, setup_observation
 from crypto_bot.replay.institutional import NAME as INSTITUTIONAL
 from crypto_bot.replay.institutional import InstitutionalContext
 from crypto_bot.replay.institutional_exit import custom as custom_peak_lock
@@ -61,6 +62,11 @@ class Variant:
         self.ledger = MemoryLedger(self.settings, at(start))
         self.execution = ReplayExecution(self.ledger, self.settings)
         self.adaptive_exit = config["exit_policy"] in RESEARCH_EXITS
+        self.fresh_setup = (
+            FreshSetupAdmission()
+            if config.get("entry_admission", "OFF") != "OFF"
+            else None
+        )
         self.rearm = SetupRearm() if config.get("setup_rearm", "OFF") != "OFF" else None
         self.exit = policy(
             "baseline_v1" if self.adaptive_exit else config["exit_policy"],
@@ -87,6 +93,15 @@ class Variant:
 
     def block_entry(self, signal, reasons):
         if signal.action == "BUY":
+            if self.fresh_setup and self.fresh_setup.missed(signal.symbol):
+                self.event(
+                    "FRESH_SETUP_MISSED_CAPACITY",
+                    ms(signal.timestamp),
+                    symbol=signal.symbol,
+                    block_risk_reason=reasons,
+                    original_strategy_decision=asdict(signal),
+                    **self.fresh_setup.audit(signal.symbol, ms(signal.timestamp)),
+                )
             self.blocked[legacy_group(reasons)] += 1
             self.blocked_reasons[reason_key(reasons)] += 1
 
@@ -184,6 +199,60 @@ class Variant:
                         snapshot_id=context.snapshot_id,
                     )
             signal = self.strategy.evaluate(context, context.symbol in existing)
+            if self.fresh_setup:
+                setup, observable = setup_observation(self.strategy, context)
+                # Held-only exit rows depend on portfolio occupancy. They are
+                # never setup observations; absent TopN rows remain unknown.
+                observable = observable and row.get("auto_eligible", True)
+                transition = self.fresh_setup.observe(
+                    context.symbol, setup, observable, now
+                )
+                audit = self.fresh_setup.audit(context.symbol, now) | {
+                    "setup_observable": observable
+                }
+                if transition:
+                    self.event(
+                        transition,
+                        now,
+                        symbol=context.symbol,
+                        original_strategy_decision=asdict(signal),
+                        **audit,
+                    )
+                if signal.action == "BUY":
+                    if not observable or not self.fresh_setup.admit(
+                        context.symbol, now
+                    ):
+                        # Do not label this gate rejection as missed capacity.
+                        self.blocked["other"] += 1
+                        self.blocked_reasons["ENTRY_NOT_FRESH_SETUP"] += 1
+                        self.event(
+                            "ENTRY_NOT_FRESH_SETUP",
+                            now,
+                            symbol=context.symbol,
+                            action="BUY",
+                            reason="ENTRY_NOT_FRESH_SETUP",
+                            original_strategy_decision=asdict(signal),
+                            **audit,
+                        )
+                        continue
+                elif transition and (
+                    "CORRELATION_LIMIT" in signal.reasons or context.symbol in existing
+                ):
+                    self.fresh_setup.admit(context.symbol, now)
+                    self.fresh_setup.missed(context.symbol)
+                    self.event(
+                        "FRESH_SETUP_MISSED_CAPACITY",
+                        now,
+                        symbol=context.symbol,
+                        block_risk_reason=(
+                            ["duplicate open position; pyramiding disabled"]
+                            if context.symbol in existing
+                            else list(signal.reasons)
+                        ),
+                        original_strategy_decision=asdict(signal),
+                        **audit,
+                    )
+
             if (
                 self.rearm
                 and signal.action == "BUY"
@@ -435,6 +504,8 @@ class Variant:
                 event["order_id"] = audit["order_id"]
             self.total_slippage += D(audit["slippage"])
             if signal.action == "BUY":
+                if self.fresh_setup:
+                    self.fresh_setup.filled(signal.symbol)
                 position.original_stop = signal.stop_reference
                 position.take_profit_price, _ = levels(
                     self.exit,
@@ -690,6 +761,11 @@ class Variant:
 
     def checkpoint(self):
         return dict(
+            **(
+                {"fresh_setup": self.fresh_setup.checkpoint()}
+                if self.fresh_setup
+                else {}
+            ),
             **({"setup_rearm": self.rearm.checkpoint()} if self.rearm else {}),
             **(
                 {"institutional_rejections": dict(self.institutional_rejections)}
@@ -821,6 +897,8 @@ class ReplayEngine:
             )
             for i, (v, state) in enumerate(zip(variants, checkpoint["variants"])):
                 v.ledger.restore(state["ledger"])
+                if v.fresh_setup:
+                    v.fresh_setup = FreshSetupAdmission(state.get("fresh_setup"))
                 if v.rearm:
                     v.rearm = SetupRearm(state.get("setup_rearm"))
                 v.execution.next_order = state["next_order"]
