@@ -1,0 +1,2459 @@
+{
+  "source_sha": "51e11378b953be9e026ba52c03c2e652b19759ee",
+  "core": {
+    "trades": [
+      {
+        "mfe_abs_pct": 0.04997501249375312,
+        "mae_abs_pct": 2.048975512243878,
+        "mfe_r": 0.021767513379405124,
+        "mae_r": 0.89246804855561,
+        "maximum_high_since_entry": "100.1",
+        "maximum_unrealized_profit": "-0.399700149924",
+        "realized_profit": "-4.587119027896",
+        "peak_to_exit_giveback_r": 0.9128646657099428,
+        "peak_to_exit_giveback_pct": null,
+        "peak_to_exit_giveback_percentage_points": 2.093709438986921,
+        "research_exit_stage": "INITIAL_STOP",
+        "maximum_reached_r": 0.021767513379405124,
+        "final_stop_price": "98",
+        "trail_activation_timestamp": null,
+        "entry_score": 76.4,
+        "score_components": {
+          "fixed": 76.4
+        },
+        "score_reasons": [
+          "fixed source"
+        ],
+        "delta_1h": 2.6000000000000085,
+        "delta_4h": 2.6000000000000085,
+        "delta_24h": 2.6000000000000085,
+        "scanner_snapshot_timestamp": "2024-01-01T06:00:00Z",
+        "ema50": 101,
+        "ema200": 100,
+        "rsi": 55,
+        "atr": 1,
+        "atr_pct": 1,
+        "relative_volume": 1.5,
+        "momentum": 1,
+        "range_position": 0.5,
+        "entry_reference_price": "100",
+        "entry_drift_pct": 0.0,
+        "entry_drift_atr": 0.0,
+        "risk_amount": "4.587119027896",
+        "risk_reasons": [
+          "approved within all limits",
+          "size capped by exposure or available cash"
+        ],
+        "risk_decision": {
+          "approved": true,
+          "requested_symbol": "NEARUSDT",
+          "risk_amount": "4.587119027896",
+          "position_notional": "199.800199800112",
+          "quantity": "1.997003496253",
+          "stop_distance_pct": "2.048975512243",
+          "reasons": [
+            "approved within all limits",
+            "size capped by exposure or available cash"
+          ]
+        },
+        "portfolio_at_decision": {
+          "equity": "1000.000000000000",
+          "cash_balance": "1000",
+          "reserved_cash": "0",
+          "positions": [],
+          "realized_pnl": "0",
+          "fees_paid": "0",
+          "daily_pnl": "0E-12",
+          "day_start_equity": "1000",
+          "peak_equity": "1000",
+          "max_drawdown": "0E-12",
+          "stale_exposure_reservation": "0"
+        },
+        "strategy_reasons": [
+          "MULTITF_BULLISH",
+          "BTC_BULL",
+          "SCORE_AND_MOMENTUM_APPROVED"
+        ],
+        "algorithm_watch": true,
+        "btc_regime": "UNKNOWN",
+        "btc_regime_source_timestamp": null,
+        "btc_regime_entry_gate": "OFF",
+        "intrabar_ambiguity": false,
+        "institutional_context": {
+          "decision_time": "2024-01-01T06:00:00Z",
+          "coin_trends": {
+            "1h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T05:59:59.999000Z",
+              "ema_fast": 299.9610000001091,
+              "ema_slow": 299.81236788167973
+            },
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T03:59:59.999000Z",
+              "ema_fast": 299.81000000043656,
+              "ema_slow": 299.2154715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "btc": {
+            "regime": "BULL",
+            "trends": {
+              "4h": {
+                "ready": true,
+                "fresh": true,
+                "observations": 499,
+                "source_timestamp": "2024-01-01T03:59:59.999000Z",
+                "ema_fast": 299.81000000043656,
+                "ema_slow": 299.2154715267194
+              },
+              "1d": {
+                "ready": true,
+                "fresh": true,
+                "observations": 201,
+                "source_timestamp": "2023-12-31T23:59:59.999000Z",
+                "ema_fast": 298.8223940833695,
+                "ema_slow": 295.86835053997765
+              }
+            },
+            "risk_multiplier": "1"
+          },
+          "correlation": {
+            "enabled": true,
+            "blocked": false,
+            "pairs": [],
+            "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+          }
+        },
+        "institutional_btc_regime": "BULL",
+        "risk_multiplier": "1",
+        "stale_state": {
+          "stale": false,
+          "quarantined": false,
+          "first_stale_time": null,
+          "stale_since": null,
+          "last_valid_mark_time": "2024-01-01T11:01:00Z",
+          "last_valid_mark_price": "100",
+          "stale_duration_seconds": 0,
+          "resumed_after_stale": false
+        },
+        "position_id": 1,
+        "symbol": "NEARUSDT",
+        "stale": false,
+        "quarantined": false,
+        "first_stale_time": null,
+        "last_valid_mark_time": "2024-01-01T11:01:00Z",
+        "last_valid_mark_price": "100",
+        "stale_duration_seconds": 0,
+        "resumed_after_stale": false,
+        "capital_locked_by_stale_positions": "0",
+        "exposure_locked_by_stale_positions": "0",
+        "status": "CLOSED",
+        "asset_group": "ALT",
+        "entry_time": "2024-01-01T06:00:00Z",
+        "exit_time": "2024-01-01T11:01:00Z",
+        "duration_seconds": 18060.0,
+        "quantity": "1.997003496253",
+        "notional": "199.800199800112",
+        "entry_fill_price": "100.050000000000",
+        "entry_price": "100.050000000000",
+        "exit_price": "97.951000000000",
+        "original_stop_price": "98",
+        "take_profit_price": null,
+        "stop_price": "98",
+        "exit_reason": "ORIGINAL_STOP",
+        "realized_pnl": "-4.587119027896",
+        "unrealized_pnl": "0",
+        "return_pct": -2.2935595139490093,
+        "r_multiple": -1.0,
+        "mfe_pct": 0.04997501249375312,
+        "mae_pct": -2.048975512243878,
+        "fees": "0.395408689261",
+        "slippage": "0.197703346128",
+        "entry_fee": "0.199800199800",
+        "exit_fee": "0.195608489461",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "strategy_name": "institutional_style_v1",
+        "exit_policy": "baseline_v1"
+      }
+    ],
+    "curve": [
+      {
+        "time": 1704067200000,
+        "timestamp": "2024-01-01T00:00:00Z",
+        "equity": "1000.000000000000",
+        "cash": "1000",
+        "exposure": "0",
+        "drawdown_pct": 0.0,
+        "max_drawdown": "0"
+      },
+      {
+        "time": 1704070800000,
+        "timestamp": "2024-01-01T01:00:00Z",
+        "equity": "1000.000000000000",
+        "cash": "1000",
+        "exposure": "0",
+        "drawdown_pct": 0.0,
+        "max_drawdown": "0E-12"
+      },
+      {
+        "time": 1704074400000,
+        "timestamp": "2024-01-01T02:00:00Z",
+        "equity": "1000.000000000000",
+        "cash": "1000",
+        "exposure": "0",
+        "drawdown_pct": 0.0,
+        "max_drawdown": "0E-12"
+      },
+      {
+        "time": 1704078000000,
+        "timestamp": "2024-01-01T03:00:00Z",
+        "equity": "1000.000000000000",
+        "cash": "1000",
+        "exposure": "0",
+        "drawdown_pct": 0.0,
+        "max_drawdown": "0E-12"
+      },
+      {
+        "time": 1704081600000,
+        "timestamp": "2024-01-01T04:00:00Z",
+        "equity": "1000.000000000000",
+        "cash": "1000",
+        "exposure": "0",
+        "drawdown_pct": 0.0,
+        "max_drawdown": "0E-12"
+      },
+      {
+        "time": 1704085200000,
+        "timestamp": "2024-01-01T05:00:00Z",
+        "equity": "1000.000000000000",
+        "cash": "1000",
+        "exposure": "0",
+        "drawdown_pct": 0.0,
+        "max_drawdown": "0E-12"
+      },
+      {
+        "time": 1704088800000,
+        "timestamp": "2024-01-01T06:00:00Z",
+        "equity": "1000.000000000000",
+        "cash": "1000",
+        "exposure": "0",
+        "drawdown_pct": 0.0,
+        "max_drawdown": "0E-12"
+      },
+      {
+        "time": 1704092400000,
+        "timestamp": "2024-01-01T07:00:00Z",
+        "equity": "999.700349625388",
+        "cash": "800.000000000088",
+        "exposure": "199.700349625300",
+        "drawdown_pct": 0.0299650374612,
+        "max_drawdown": "0.029965037461"
+      },
+      {
+        "time": 1704096000000,
+        "timestamp": "2024-01-01T08:00:00Z",
+        "equity": "999.700349625388",
+        "cash": "800.000000000088",
+        "exposure": "199.700349625300",
+        "drawdown_pct": 0.0299650374612,
+        "max_drawdown": "0.029965037461"
+      },
+      {
+        "time": 1704099600000,
+        "timestamp": "2024-01-01T09:00:00Z",
+        "equity": "999.700349625388",
+        "cash": "800.000000000088",
+        "exposure": "199.700349625300",
+        "drawdown_pct": 0.0299650374612,
+        "max_drawdown": "0.029965037461"
+      },
+      {
+        "time": 1704103200000,
+        "timestamp": "2024-01-01T10:00:00Z",
+        "equity": "999.700349625388",
+        "cash": "800.000000000088",
+        "exposure": "199.700349625300",
+        "drawdown_pct": 0.0299650374612,
+        "max_drawdown": "0.029965037461"
+      },
+      {
+        "time": 1704106800000,
+        "timestamp": "2024-01-01T11:00:00Z",
+        "equity": "999.700349625388",
+        "cash": "800.000000000088",
+        "exposure": "199.700349625300",
+        "drawdown_pct": 0.0299650374612,
+        "max_drawdown": "0.029965037461"
+      },
+      {
+        "time": 1704110400000,
+        "timestamp": "2024-01-01T12:00:00Z",
+        "equity": "995.412880972104",
+        "cash": "995.412880972104",
+        "exposure": "0",
+        "drawdown_pct": 0.4587119027896,
+        "max_drawdown": "0.458711902789"
+      },
+      {
+        "time": 1704114000000,
+        "timestamp": "2024-01-01T13:00:00Z",
+        "equity": "995.412880972104",
+        "cash": "995.412880972104",
+        "exposure": "0",
+        "drawdown_pct": 0.4587119027896,
+        "max_drawdown": "0.458711902789"
+      },
+      {
+        "time": 1704117600000,
+        "timestamp": "2024-01-01T14:00:00Z",
+        "equity": "995.412880972104",
+        "cash": "995.412880972104",
+        "exposure": "0",
+        "drawdown_pct": 0.4587119027896,
+        "max_drawdown": "0.458711902789"
+      }
+    ],
+    "orders": [
+      {
+        "order_id": 1,
+        "position_id": 1,
+        "symbol": "NEARUSDT",
+        "side": "BUY",
+        "status": "FILLED",
+        "signal_time": "2024-01-01T06:00:00Z",
+        "execution_time": "2024-01-01T06:00:00Z",
+        "reference_price": "100",
+        "fill_price": "100.050000000000",
+        "quantity": "1.997003496253",
+        "notional": "199.800199800112",
+        "fee": "0.199800199800",
+        "slippage": "0.099850174812",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "STRATEGY",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      },
+      {
+        "order_id": 2,
+        "position_id": 1,
+        "symbol": "NEARUSDT",
+        "side": "SELL",
+        "status": "FILLED",
+        "signal_time": "2024-01-01T11:01:00Z",
+        "execution_time": "2024-01-01T11:01:00Z",
+        "reference_price": "98",
+        "fill_price": "97.951000000000",
+        "quantity": "1.997003496253",
+        "notional": "195.608489461477",
+        "fee": "0.195608489461",
+        "slippage": "0.097853171316",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "ORIGINAL_STOP",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      }
+    ],
+    "fills": [
+      {
+        "order_id": 1,
+        "position_id": 1,
+        "symbol": "NEARUSDT",
+        "side": "BUY",
+        "status": "FILLED",
+        "signal_time": "2024-01-01T06:00:00Z",
+        "execution_time": "2024-01-01T06:00:00Z",
+        "reference_price": "100",
+        "fill_price": "100.050000000000",
+        "quantity": "1.997003496253",
+        "notional": "199.800199800112",
+        "fee": "0.199800199800",
+        "slippage": "0.099850174812",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "STRATEGY",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      },
+      {
+        "order_id": 2,
+        "position_id": 1,
+        "symbol": "NEARUSDT",
+        "side": "SELL",
+        "status": "FILLED",
+        "signal_time": "2024-01-01T11:01:00Z",
+        "execution_time": "2024-01-01T11:01:00Z",
+        "reference_price": "98",
+        "fill_price": "97.951000000000",
+        "quantity": "1.997003496253",
+        "notional": "195.608489461477",
+        "fee": "0.195608489461",
+        "slippage": "0.097853171316",
+        "source_timeframe": "1m",
+        "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+        "reason": "ORIGINAL_STOP",
+        "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+      }
+    ],
+    "cash": "995.412880972104",
+    "equity": "995.412880972104"
+  },
+  "events": [
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T00:00:00Z",
+      "symbol": "OPUSDT",
+      "reasons": [
+        "RSI_OUTSIDE_RANGE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T00:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 299.9490000001091,
+            "ema_slow": 299.80036788167973
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 299.8020000004366,
+            "ema_slow": 299.2074715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 299.8020000004366,
+              "ema_slow": 299.2074715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T00:00:00Z",
+      "symbol": "NEARUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T00:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 299.9490000001091,
+            "ema_slow": 299.80036788167973
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 299.8020000004366,
+            "ema_slow": 299.2074715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 299.8020000004366,
+              "ema_slow": 299.2074715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T01:00:00Z",
+      "symbol": "NEARUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T01:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T00:59:59.999000Z",
+            "ema_fast": 299.9510000001091,
+            "ema_slow": 299.80236788167974
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 299.8020000004366,
+            "ema_slow": 299.2074715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 299.8020000004366,
+              "ema_slow": 299.2074715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T02:00:00Z",
+      "symbol": "NEARUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T02:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T01:59:59.999000Z",
+            "ema_fast": 299.9530000001091,
+            "ema_slow": 299.80436788167975
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 299.8020000004366,
+            "ema_slow": 299.2074715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 299.8020000004366,
+              "ema_slow": 299.2074715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T03:00:00Z",
+      "symbol": "NEARUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T03:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T02:59:59.999000Z",
+            "ema_fast": 299.9550000001091,
+            "ema_slow": 299.80636788167976
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 299.8020000004366,
+            "ema_slow": 299.2074715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 299.8020000004366,
+              "ema_slow": 299.2074715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T04:00:00Z",
+      "symbol": "NEARUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T04:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T03:59:59.999000Z",
+            "ema_fast": 299.9570000001091,
+            "ema_slow": 299.80836788167977
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T03:59:59.999000Z",
+            "ema_fast": 299.81000000043656,
+            "ema_slow": 299.2154715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T03:59:59.999000Z",
+              "ema_fast": 299.81000000043656,
+              "ema_slow": 299.2154715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T05:00:00Z",
+      "symbol": "NEARUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T05:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T04:59:59.999000Z",
+            "ema_fast": 299.9590000001091,
+            "ema_slow": 299.8103678816798
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T03:59:59.999000Z",
+            "ema_fast": 299.81000000043656,
+            "ema_slow": 299.2154715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T03:59:59.999000Z",
+              "ema_fast": 299.81000000043656,
+              "ema_slow": 299.2154715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T06:00:00Z",
+      "symbol": "OPUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T06:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T05:59:59.999000Z",
+            "ema_fast": 299.9610000001091,
+            "ema_slow": 299.81236788167973
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T03:59:59.999000Z",
+            "ema_fast": 299.81000000043656,
+            "ema_slow": 299.2154715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T03:59:59.999000Z",
+              "ema_fast": 299.81000000043656,
+              "ema_slow": 299.2154715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "STRATEGY_SIGNAL",
+      "timestamp": "2024-01-01T06:00:00Z",
+      "symbol": "NEARUSDT",
+      "action": "BUY",
+      "reasons": [
+        "MULTITF_BULLISH",
+        "BTC_BULL",
+        "SCORE_AND_MOMENTUM_APPROVED"
+      ],
+      "entry_reference": "100",
+      "position_id": 1,
+      "order_id": 1
+    },
+    {
+      "event": "RISK_DECISION",
+      "timestamp": "2024-01-01T06:00:00Z",
+      "symbol": "NEARUSDT",
+      "action": "BUY",
+      "decision": {
+        "approved": true,
+        "requested_symbol": "NEARUSDT",
+        "risk_amount": "4.587119027896",
+        "position_notional": "199.800199800112",
+        "quantity": "1.997003496253",
+        "stop_distance_pct": "2.048975512243",
+        "reasons": [
+          "approved within all limits",
+          "size capped by exposure or available cash"
+        ]
+      },
+      "portfolio": {
+        "equity": "1000.000000000000",
+        "cash_balance": "1000",
+        "reserved_cash": "0",
+        "positions": [],
+        "realized_pnl": "0",
+        "fees_paid": "0",
+        "daily_pnl": "0E-12",
+        "day_start_equity": "1000",
+        "peak_equity": "1000",
+        "max_drawdown": "0E-12",
+        "stale_exposure_reservation": "0"
+      },
+      "position_id": 1,
+      "order_id": 1
+    },
+    {
+      "event": "ENTRY_FILL",
+      "timestamp": "2024-01-01T06:00:00Z",
+      "order_id": 1,
+      "position_id": 1,
+      "symbol": "NEARUSDT",
+      "side": "BUY",
+      "status": "FILLED",
+      "signal_time": "2024-01-01T06:00:00Z",
+      "execution_time": "2024-01-01T06:00:00Z",
+      "reference_price": "100",
+      "fill_price": "100.050000000000",
+      "quantity": "1.997003496253",
+      "notional": "199.800199800112",
+      "fee": "0.199800199800",
+      "slippage": "0.099850174812",
+      "source_timeframe": "1m",
+      "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+      "reason": "STRATEGY",
+      "time_precision": "CANDLE_BOUNDARY_APPROXIMATION"
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T07:00:00Z",
+      "symbol": "OPUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE",
+        "CORRELATION_LIMIT"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T07:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T06:59:59.999000Z",
+            "ema_fast": 299.9630000001091,
+            "ema_slow": 299.81436788167974
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T03:59:59.999000Z",
+            "ema_fast": 299.81000000043656,
+            "ema_slow": 299.2154715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T03:59:59.999000Z",
+              "ema_fast": 299.81000000043656,
+              "ema_slow": 299.2154715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": true,
+          "pairs": [
+            {
+              "symbol": "NEARUSDT",
+              "observations": 168,
+              "correlation": 1.0,
+              "reason": "CORRELATION_LIMIT",
+              "latest_source_timestamp": "2024-01-01T06:59:59.999000Z"
+            }
+          ],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T08:00:00Z",
+      "symbol": "OPUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE",
+        "CORRELATION_LIMIT"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T08:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T07:59:59.999000Z",
+            "ema_fast": 299.9650000001091,
+            "ema_slow": 299.81636788167975
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T07:59:59.999000Z",
+            "ema_fast": 299.81800000043654,
+            "ema_slow": 299.22347152671944
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T07:59:59.999000Z",
+              "ema_fast": 299.81800000043654,
+              "ema_slow": 299.22347152671944
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": true,
+          "pairs": [
+            {
+              "symbol": "NEARUSDT",
+              "observations": 168,
+              "correlation": 1.0,
+              "reason": "CORRELATION_LIMIT",
+              "latest_source_timestamp": "2024-01-01T07:59:59.999000Z"
+            }
+          ],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T09:00:00Z",
+      "symbol": "OPUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE",
+        "CORRELATION_LIMIT"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T09:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T08:59:59.999000Z",
+            "ema_fast": 299.9670000001091,
+            "ema_slow": 299.81836788167976
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T07:59:59.999000Z",
+            "ema_fast": 299.81800000043654,
+            "ema_slow": 299.22347152671944
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T07:59:59.999000Z",
+              "ema_fast": 299.81800000043654,
+              "ema_slow": 299.22347152671944
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": true,
+          "pairs": [
+            {
+              "symbol": "NEARUSDT",
+              "observations": 168,
+              "correlation": 1.0,
+              "reason": "CORRELATION_LIMIT",
+              "latest_source_timestamp": "2024-01-01T08:59:59.999000Z"
+            }
+          ],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T10:00:00Z",
+      "symbol": "OPUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE",
+        "CORRELATION_LIMIT"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T10:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T09:59:59.999000Z",
+            "ema_fast": 299.9690000001091,
+            "ema_slow": 299.8203678816798
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T07:59:59.999000Z",
+            "ema_fast": 299.81800000043654,
+            "ema_slow": 299.22347152671944
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T07:59:59.999000Z",
+              "ema_fast": 299.81800000043654,
+              "ema_slow": 299.22347152671944
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": true,
+          "pairs": [
+            {
+              "symbol": "NEARUSDT",
+              "observations": 168,
+              "correlation": 1.0,
+              "reason": "CORRELATION_LIMIT",
+              "latest_source_timestamp": "2024-01-01T09:59:59.999000Z"
+            }
+          ],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T11:00:00Z",
+      "symbol": "OPUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE",
+        "CORRELATION_LIMIT"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T11:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T10:59:59.999000Z",
+            "ema_fast": 299.9710000001091,
+            "ema_slow": 299.8223678816798
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T07:59:59.999000Z",
+            "ema_fast": 299.81800000043654,
+            "ema_slow": 299.22347152671944
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T07:59:59.999000Z",
+              "ema_fast": 299.81800000043654,
+              "ema_slow": 299.22347152671944
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": true,
+          "pairs": [
+            {
+              "symbol": "NEARUSDT",
+              "observations": 168,
+              "correlation": 1.0,
+              "reason": "CORRELATION_LIMIT",
+              "latest_source_timestamp": "2024-01-01T10:59:59.999000Z"
+            }
+          ],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "EXIT_TRIGGER",
+      "timestamp": "2024-01-01T11:01:00Z",
+      "position_id": 1,
+      "symbol": "NEARUSDT",
+      "reason": "ORIGINAL_STOP",
+      "reference_price": "98",
+      "original_stop": "98",
+      "active_stop": "98",
+      "take_profit": null
+    },
+    {
+      "event": "RISK_DECISION",
+      "timestamp": "2024-01-01T11:01:00Z",
+      "position_id": 1,
+      "symbol": "NEARUSDT",
+      "decision": {
+        "approved": true,
+        "requested_symbol": "NEARUSDT",
+        "risk_amount": "0",
+        "position_notional": "195.706342632794",
+        "quantity": "1.997003496253",
+        "stop_distance_pct": "0",
+        "reasons": [
+          "long position exit permitted"
+        ]
+      },
+      "portfolio": {
+        "equity": "999.700349625388",
+        "cash_balance": "800.000000000088",
+        "reserved_cash": "0E-12",
+        "positions": [
+          {
+            "id": 1,
+            "symbol": "NEARUSDT",
+            "quantity": "1.997003496253",
+            "entry_price": "100.050000000000",
+            "current_price": "100.000000000000",
+            "stop_price": "98",
+            "entry_fee": "0.199800199800",
+            "strategy_name": "institutional_style_v1",
+            "take_profit_price": null
+          }
+        ],
+        "realized_pnl": "0",
+        "fees_paid": "0.199800199800",
+        "daily_pnl": "-0.299650374612",
+        "day_start_equity": "1000",
+        "peak_equity": "1000",
+        "max_drawdown": "0.029965037461"
+      }
+    },
+    {
+      "event": "EXIT_FILL",
+      "timestamp": "2024-01-01T11:01:00Z",
+      "order_id": 2,
+      "position_id": 1,
+      "symbol": "NEARUSDT",
+      "side": "SELL",
+      "status": "FILLED",
+      "signal_time": "2024-01-01T11:01:00Z",
+      "execution_time": "2024-01-01T11:01:00Z",
+      "reference_price": "98",
+      "fill_price": "97.951000000000",
+      "quantity": "1.997003496253",
+      "notional": "195.608489461477",
+      "fee": "0.195608489461",
+      "slippage": "0.097853171316",
+      "source_timeframe": "1m",
+      "source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+      "reason": "ORIGINAL_STOP",
+      "time_precision": "CANDLE_BOUNDARY_APPROXIMATION",
+      "intrabar_ambiguity": false,
+      "candle_open_time": "2024-01-01T11:00:00Z",
+      "candle_close_time": "2024-01-01T11:01:00Z",
+      "trigger_precision": "INTRABAR_APPROXIMATION_KNOWN_AT_CLOSE"
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T12:00:00Z",
+      "symbol": "NEARUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T12:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T11:59:59.999000Z",
+            "ema_fast": 299.9730000001091,
+            "ema_slow": 299.82436788167973
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T11:59:59.999000Z",
+            "ema_fast": 299.8260000004366,
+            "ema_slow": 299.2314715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T11:59:59.999000Z",
+              "ema_fast": 299.8260000004366,
+              "ema_slow": 299.2314715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T12:00:00Z",
+      "symbol": "OPUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T12:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T11:59:59.999000Z",
+            "ema_fast": 299.9730000001091,
+            "ema_slow": 299.82436788167973
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T11:59:59.999000Z",
+            "ema_fast": 299.8260000004366,
+            "ema_slow": 299.2314715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T11:59:59.999000Z",
+              "ema_fast": 299.8260000004366,
+              "ema_slow": 299.2314715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T13:00:00Z",
+      "symbol": "NEARUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T13:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T12:59:59.999000Z",
+            "ema_fast": 299.9750000001091,
+            "ema_slow": 299.82636788167974
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T11:59:59.999000Z",
+            "ema_fast": 299.8260000004366,
+            "ema_slow": 299.2314715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T11:59:59.999000Z",
+              "ema_fast": 299.8260000004366,
+              "ema_slow": 299.2314715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    },
+    {
+      "event": "INSTITUTIONAL_ENTRY_REJECTED",
+      "timestamp": "2024-01-01T13:00:00Z",
+      "symbol": "OPUSDT",
+      "reasons": [
+        "SCORE_DELTA_NOT_POSITIVE"
+      ],
+      "context": {
+        "decision_time": "2024-01-01T13:00:00Z",
+        "coin_trends": {
+          "1h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T12:59:59.999000Z",
+            "ema_fast": 299.9750000001091,
+            "ema_slow": 299.82636788167974
+          },
+          "4h": {
+            "ready": true,
+            "fresh": true,
+            "observations": 499,
+            "source_timestamp": "2024-01-01T11:59:59.999000Z",
+            "ema_fast": 299.8260000004366,
+            "ema_slow": 299.2314715267194
+          },
+          "1d": {
+            "ready": true,
+            "fresh": true,
+            "observations": 201,
+            "source_timestamp": "2023-12-31T23:59:59.999000Z",
+            "ema_fast": 298.8223940833695,
+            "ema_slow": 295.86835053997765
+          }
+        },
+        "btc": {
+          "regime": "BULL",
+          "trends": {
+            "4h": {
+              "ready": true,
+              "fresh": true,
+              "observations": 499,
+              "source_timestamp": "2024-01-01T11:59:59.999000Z",
+              "ema_fast": 299.8260000004366,
+              "ema_slow": 299.2314715267194
+            },
+            "1d": {
+              "ready": true,
+              "fresh": true,
+              "observations": 201,
+              "source_timestamp": "2023-12-31T23:59:59.999000Z",
+              "ema_fast": 298.8223940833695,
+              "ema_slow": 295.86835053997765
+            }
+          },
+          "risk_multiplier": "1"
+        },
+        "correlation": {
+          "enabled": true,
+          "blocked": false,
+          "pairs": [],
+          "insufficient_policy": "INSUFFICIENT_DATA_ALLOW"
+        }
+      }
+    }
+  ],
+  "checkpoint": {
+    "institutional_rejections": {
+      "RSI_OUTSIDE_RANGE": 1,
+      "SCORE_DELTA_NOT_POSITIVE": 16,
+      "CORRELATION_LIMIT": 5
+    },
+    "ledger": {
+      "account": {
+        "id": 1,
+        "generation": 1,
+        "quote_asset": "USDT",
+        "initial_balance": "1000",
+        "cash_balance": "995.412880972104",
+        "reserved_cash": "0E-12",
+        "realized_pnl": "-4.587119027896",
+        "fees_paid": "0.395408689261",
+        "enabled": true,
+        "created_at": "2024-01-01 00:00:00",
+        "day": "2024-01-01",
+        "day_start_equity": "1000",
+        "peak_equity": "1000",
+        "max_drawdown": "0.458711902789",
+        "configuration": {
+          "initial_paper_balance": "1000",
+          "quote_asset": "USDT",
+          "risk_per_trade_pct": "0.5",
+          "max_open_positions": 3,
+          "max_total_exposure_pct": "50",
+          "max_symbol_exposure_pct": "20",
+          "daily_loss_limit_pct": "100",
+          "max_drawdown_limit_pct": "100",
+          "minimum_order_value": "10",
+          "paper_fee_pct": "0.1",
+          "paper_slippage_pct": "0.05",
+          "pyramiding": false,
+          "loop_interval": 15,
+          "max_snapshot_age_seconds": 900,
+          "max_quote_age_seconds": 10,
+          "quote_timeout": 5,
+          "strategy_name": "institutional_style_v1",
+          "min_score": "70",
+          "min_delta": "0",
+          "delta_window": 4,
+          "require_delta": true,
+          "require_watch": true,
+          "require_bullish_ema": true,
+          "min_rsi": "40",
+          "max_rsi": "70",
+          "min_relative_volume": "1",
+          "stop_atr_multiplier": "2",
+          "exit_score": "45",
+          "exit_on_bearish_ema": true,
+          "take_profit_r_multiple": "0",
+          "require_1h_bullish": true,
+          "require_4h_bullish": true,
+          "require_1d_bullish": true,
+          "ema_fast_period": 50,
+          "ema_slow_period": 200,
+          "btc_regime_filter": true,
+          "btc_bull_risk_multiplier": "1",
+          "btc_neutral_risk_multiplier": "0.5",
+          "btc_bear_risk_multiplier": "0",
+          "correlation_filter_enabled": true,
+          "correlation_lookback_hours": 168,
+          "correlation_min_observations": 120,
+          "max_position_correlation": "0.85",
+          "correlation_insufficient_policy": "INSUFFICIENT_DATA_ALLOW",
+          "max_spread_pct": "0.2"
+        },
+        "lease_owner": null,
+        "lease_until": null
+      },
+      "positions": [],
+      "next_position": 2
+    },
+    "next_order": 3,
+    "blocked": {
+      "daily_loss": 0,
+      "drawdown": 0,
+      "exposure": 0,
+      "max_positions": 0,
+      "other": 0
+    },
+    "blocked_reasons": {},
+    "total_slippage": "0.197703346128",
+    "exposure_count": 840,
+    "exposure_sum": 5992.806235392369,
+    "exposure_max": 19.976020784641374
+  },
+  "metrics": {
+    "metrics": {
+      "trade_count": 1,
+      "open_positions": 0,
+      "win_rate": 0.0,
+      "average_return": -2.2935595139490093,
+      "net_pnl": "-4.587119027896",
+      "profit_factor": 0.0,
+      "profit_factor_status": "DEFINED",
+      "avg_win": null,
+      "avg_loss": -4.587119027896,
+      "expectancy": -4.587119027896,
+      "avg_r": -1.0,
+      "median_r": -1.0,
+      "average_hold_seconds": 18060.0,
+      "largest_win": null,
+      "largest_loss": -4.587119027896,
+      "mfe_pct": 0.04997501249375312,
+      "mae_pct": -2.048975512243878,
+      "ambiguous_trade_count": 0,
+      "sample_label": "INSUFFICIENT SAMPLE",
+      "statistically_validated": false,
+      "final_equity": "995.412880972104",
+      "initial_balance": "1000",
+      "realized_pnl": "-4.587119027896",
+      "unrealized_pnl": "0",
+      "cash": "995.412880972104",
+      "return_pct": -0.4587119027896,
+      "max_drawdown": "0.458711902789",
+      "fees": "0.395408689261",
+      "slippage_cost": "0.197703346128",
+      "current_exposure": "0",
+      "average_exposure_pct": 7.134293137371867,
+      "max_exposure_pct": 19.976020784641374,
+      "blocked_entries": {
+        "daily_loss": 0,
+        "drawdown": 0,
+        "exposure": 0,
+        "max_positions": 0,
+        "other": 0
+      },
+      "equity_precision": "MINUTE_CLOSED_PRICES_AND_EXECUTION_OPEN_MARKS; CHART STORES HOURLY",
+      "execution_source": "BINANCE_PUBLIC_KLINES_APPROXIMATION",
+      "blocked_entries_daily_loss": 0,
+      "blocked_entries_drawdown": 0,
+      "blocked_entries_exposure": 0,
+      "blocked_entries_max_positions": 0,
+      "blocked_entries_other": 0,
+      "stale_position_policy": "RESEARCH_QUARANTINE_STALE",
+      "stale_position_count": 0,
+      "stale_symbols": [],
+      "stale_positions": [],
+      "first_stale_time": null,
+      "stale_duration_seconds": 0,
+      "resumed_after_stale": false,
+      "capital_locked_by_stale_positions": "0",
+      "exposure_locked_by_stale_positions": "0",
+      "stale_data_affected": false,
+      "ranking_eligible": true,
+      "valuation_complete": true,
+      "metrics_complete": true,
+      "stale_warning": null,
+      "valuation_model": "CASH_PLUS_FRESH_MARKS_PLUS_LAST_KNOWN_STALE_MARKS",
+      "risk_sizing_equity": "995.412880972104",
+      "risk_exposure": "0",
+      "blocked_entry_reasons": {},
+      "blocked_entry_categories": {},
+      "blocked_entry_attempts": 0,
+      "research_entry_filter_block_count": 0,
+      "research_entry_filter_blocks": {
+        "SCORE_BELOW_MIN": 0,
+        "SCORE_ABOVE_MAX": 0,
+        "DELTA4H_BELOW_MIN": 0,
+        "DELTA4H_ABOVE_MAX": 0,
+        "SCORE_UNAVAILABLE": 0,
+        "DELTA4H_UNAVAILABLE": 0
+      },
+      "btc_regime_entry_block_count": 0,
+      "btc_regime_entry_blocks": {
+        "BEARISH": 0,
+        "UNKNOWN": 0,
+        "STALE": 0
+      },
+      "blocked_entry_breakdown_source": "STORED_AUDIT_EVENTS",
+      "blocked_entry_unresolved_attempts": 0,
+      "blocked_entry_breakdown_complete": true,
+      "research_closed_trades": 1,
+      "largest_realized_R": -1.0,
+      "expectancy_r": -1.0,
+      "average_MFE_R": 0.021767513379405124,
+      "median_MFE_R": 0.021767513379405124,
+      "average_realized_R": -1.0,
+      "median_realized_R": -1.0,
+      "average_giveback_R": 0.9128646657099428,
+      "median_giveback_R": 0.9128646657099428,
+      "losers_reached_0_5R": 0,
+      "losers_reached_1R": 0,
+      "losers_reached_2R": 0,
+      "winners_gave_back_gt_25pct": 0,
+      "winners_gave_back_gt_50pct": 0,
+      "trades_reached_1R_then_lost": 0,
+      "trades_reached_2R_then_lost": 0,
+      "average_mfe_capture_ratio": -45.940019999993616,
+      "median_mfe_capture_ratio": -45.940019999993616,
+      "same_symbol_reentry_within_1h": 0,
+      "same_symbol_reentry_within_4h": 0,
+      "same_symbol_reentry_within_24h": 0,
+      "turnover_notional": "395.408689261589",
+      "rearm_block_count": 0,
+      "rearm_success_count": 0,
+      "average_time_to_rearm": null,
+      "institutional_entry_rejections": {
+        "RSI_OUTSIDE_RANGE": 1,
+        "SCORE_DELTA_NOT_POSITIVE": 16,
+        "CORRELATION_LIMIT": 5
+      }
+    },
+    "breakdowns": {
+      "symbol": {
+        "NEARUSDT": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false
+        }
+      },
+      "asset_group": {
+        "ALT": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false
+        },
+        "BTC": {
+          "trade_count": 0,
+          "open_positions": 0,
+          "win_rate": null,
+          "average_return": null,
+          "net_pnl": 0,
+          "profit_factor": null,
+          "profit_factor_status": "NO_LOSSES_OR_NO_TRADES",
+          "avg_win": null,
+          "avg_loss": null,
+          "expectancy": null,
+          "avg_r": null,
+          "median_r": null,
+          "average_hold_seconds": null,
+          "largest_win": null,
+          "largest_loss": null,
+          "mfe_pct": null,
+          "mae_pct": null,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false
+        },
+        "ETH": {
+          "trade_count": 0,
+          "open_positions": 0,
+          "win_rate": null,
+          "average_return": null,
+          "net_pnl": 0,
+          "profit_factor": null,
+          "profit_factor_status": "NO_LOSSES_OR_NO_TRADES",
+          "avg_win": null,
+          "avg_loss": null,
+          "expectancy": null,
+          "avg_r": null,
+          "median_r": null,
+          "average_hold_seconds": null,
+          "largest_win": null,
+          "largest_loss": null,
+          "mfe_pct": null,
+          "mae_pct": null,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false
+        }
+      },
+      "entry_score": {
+        "75-80": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false
+        }
+      },
+      "delta4h": {
+        "0-5": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false
+        }
+      },
+      "rsi": {
+        "50-60": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false
+        }
+      },
+      "range_position": {
+        ".50-.75": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false
+        }
+      },
+      "btc_regime": {
+        "UNKNOWN": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false
+        }
+      },
+      "monthly": {
+        "2024-01": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false,
+          "pnl": -4.587119027896051,
+          "return_pct": -0.45871190278961027,
+          "drawdown_pct": 0.45871190278960516,
+          "drawdown_precision": "HOURLY_EQUITY_OBSERVATIONS"
+        }
+      },
+      "quarterly": {
+        "2024-Q1": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false,
+          "pnl": -4.587119027896051,
+          "return_pct": -0.45871190278961027,
+          "drawdown_pct": 0.45871190278960516,
+          "drawdown_precision": "HOURLY_EQUITY_OBSERVATIONS"
+        }
+      },
+      "research_btc_regime": {
+        "BEAR": {
+          "trade_count": 0,
+          "open_positions": 0,
+          "win_rate": null,
+          "average_return": null,
+          "net_pnl": 0,
+          "profit_factor": null,
+          "profit_factor_status": "NO_LOSSES_OR_NO_TRADES",
+          "avg_win": null,
+          "avg_loss": null,
+          "expectancy": null,
+          "avg_r": null,
+          "median_r": null,
+          "average_hold_seconds": null,
+          "largest_win": null,
+          "largest_loss": null,
+          "mfe_pct": null,
+          "mae_pct": null,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false,
+          "research_closed_trades": 0,
+          "largest_realized_R": null,
+          "expectancy_r": null,
+          "average_MFE_R": null,
+          "median_MFE_R": null,
+          "average_realized_R": null,
+          "median_realized_R": null,
+          "average_giveback_R": null,
+          "median_giveback_R": null,
+          "losers_reached_0_5R": 0,
+          "losers_reached_1R": 0,
+          "losers_reached_2R": 0,
+          "winners_gave_back_gt_25pct": 0,
+          "winners_gave_back_gt_50pct": 0,
+          "trades_reached_1R_then_lost": 0,
+          "trades_reached_2R_then_lost": 0,
+          "average_mfe_capture_ratio": null,
+          "median_mfe_capture_ratio": null,
+          "same_symbol_reentry_within_1h": 0,
+          "same_symbol_reentry_within_4h": 0,
+          "same_symbol_reentry_within_24h": 0,
+          "turnover_notional": "0"
+        },
+        "BULL": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false,
+          "research_closed_trades": 1,
+          "largest_realized_R": -1.0,
+          "expectancy_r": -1.0,
+          "average_MFE_R": 0.021767513379405124,
+          "median_MFE_R": 0.021767513379405124,
+          "average_realized_R": -1.0,
+          "median_realized_R": -1.0,
+          "average_giveback_R": 0.9128646657099428,
+          "median_giveback_R": 0.9128646657099428,
+          "losers_reached_0_5R": 0,
+          "losers_reached_1R": 0,
+          "losers_reached_2R": 0,
+          "winners_gave_back_gt_25pct": 0,
+          "winners_gave_back_gt_50pct": 0,
+          "trades_reached_1R_then_lost": 0,
+          "trades_reached_2R_then_lost": 0,
+          "average_mfe_capture_ratio": -45.940019999993616,
+          "median_mfe_capture_ratio": -45.940019999993616,
+          "same_symbol_reentry_within_1h": 0,
+          "same_symbol_reentry_within_4h": 0,
+          "same_symbol_reentry_within_24h": 0,
+          "turnover_notional": "395.408689261589"
+        },
+        "NEUTRAL": {
+          "trade_count": 0,
+          "open_positions": 0,
+          "win_rate": null,
+          "average_return": null,
+          "net_pnl": 0,
+          "profit_factor": null,
+          "profit_factor_status": "NO_LOSSES_OR_NO_TRADES",
+          "avg_win": null,
+          "avg_loss": null,
+          "expectancy": null,
+          "avg_r": null,
+          "median_r": null,
+          "average_hold_seconds": null,
+          "largest_win": null,
+          "largest_loss": null,
+          "mfe_pct": null,
+          "mae_pct": null,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false,
+          "research_closed_trades": 0,
+          "largest_realized_R": null,
+          "expectancy_r": null,
+          "average_MFE_R": null,
+          "median_MFE_R": null,
+          "average_realized_R": null,
+          "median_realized_R": null,
+          "average_giveback_R": null,
+          "median_giveback_R": null,
+          "losers_reached_0_5R": 0,
+          "losers_reached_1R": 0,
+          "losers_reached_2R": 0,
+          "winners_gave_back_gt_25pct": 0,
+          "winners_gave_back_gt_50pct": 0,
+          "trades_reached_1R_then_lost": 0,
+          "trades_reached_2R_then_lost": 0,
+          "average_mfe_capture_ratio": null,
+          "median_mfe_capture_ratio": null,
+          "same_symbol_reentry_within_1h": 0,
+          "same_symbol_reentry_within_4h": 0,
+          "same_symbol_reentry_within_24h": 0,
+          "turnover_notional": "0"
+        }
+      },
+      "research_symbol": {
+        "NEARUSDT": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false,
+          "research_closed_trades": 1,
+          "largest_realized_R": -1.0,
+          "expectancy_r": -1.0,
+          "average_MFE_R": 0.021767513379405124,
+          "median_MFE_R": 0.021767513379405124,
+          "average_realized_R": -1.0,
+          "median_realized_R": -1.0,
+          "average_giveback_R": 0.9128646657099428,
+          "median_giveback_R": 0.9128646657099428,
+          "losers_reached_0_5R": 0,
+          "losers_reached_1R": 0,
+          "losers_reached_2R": 0,
+          "winners_gave_back_gt_25pct": 0,
+          "winners_gave_back_gt_50pct": 0,
+          "trades_reached_1R_then_lost": 0,
+          "trades_reached_2R_then_lost": 0,
+          "average_mfe_capture_ratio": -45.940019999993616,
+          "median_mfe_capture_ratio": -45.940019999993616,
+          "same_symbol_reentry_within_1h": 0,
+          "same_symbol_reentry_within_4h": 0,
+          "same_symbol_reentry_within_24h": 0,
+          "turnover_notional": "395.408689261589"
+        }
+      },
+      "research_volatility": {
+        "1-2%": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false,
+          "research_closed_trades": 1,
+          "largest_realized_R": -1.0,
+          "expectancy_r": -1.0,
+          "average_MFE_R": 0.021767513379405124,
+          "median_MFE_R": 0.021767513379405124,
+          "average_realized_R": -1.0,
+          "median_realized_R": -1.0,
+          "average_giveback_R": 0.9128646657099428,
+          "median_giveback_R": 0.9128646657099428,
+          "losers_reached_0_5R": 0,
+          "losers_reached_1R": 0,
+          "losers_reached_2R": 0,
+          "winners_gave_back_gt_25pct": 0,
+          "winners_gave_back_gt_50pct": 0,
+          "trades_reached_1R_then_lost": 0,
+          "trades_reached_2R_then_lost": 0,
+          "average_mfe_capture_ratio": -45.940019999993616,
+          "median_mfe_capture_ratio": -45.940019999993616,
+          "same_symbol_reentry_within_1h": 0,
+          "same_symbol_reentry_within_4h": 0,
+          "same_symbol_reentry_within_24h": 0,
+          "turnover_notional": "395.408689261589"
+        }
+      },
+      "research_exit_stage": {
+        "INITIAL_STOP": {
+          "trade_count": 1,
+          "open_positions": 0,
+          "win_rate": 0.0,
+          "average_return": -2.2935595139490093,
+          "net_pnl": -4.587119027896,
+          "profit_factor": 0.0,
+          "profit_factor_status": "DEFINED",
+          "avg_win": null,
+          "avg_loss": -4.587119027896,
+          "expectancy": -4.587119027896,
+          "avg_r": -1.0,
+          "median_r": -1.0,
+          "average_hold_seconds": 18060.0,
+          "largest_win": null,
+          "largest_loss": -4.587119027896,
+          "mfe_pct": 0.04997501249375312,
+          "mae_pct": -2.048975512243878,
+          "ambiguous_trade_count": 0,
+          "sample_label": "INSUFFICIENT SAMPLE",
+          "statistically_validated": false,
+          "research_closed_trades": 1,
+          "largest_realized_R": -1.0,
+          "expectancy_r": -1.0,
+          "average_MFE_R": 0.021767513379405124,
+          "median_MFE_R": 0.021767513379405124,
+          "average_realized_R": -1.0,
+          "median_realized_R": -1.0,
+          "average_giveback_R": 0.9128646657099428,
+          "median_giveback_R": 0.9128646657099428,
+          "losers_reached_0_5R": 0,
+          "losers_reached_1R": 0,
+          "losers_reached_2R": 0,
+          "winners_gave_back_gt_25pct": 0,
+          "winners_gave_back_gt_50pct": 0,
+          "trades_reached_1R_then_lost": 0,
+          "trades_reached_2R_then_lost": 0,
+          "average_mfe_capture_ratio": -45.940019999993616,
+          "median_mfe_capture_ratio": -45.940019999993616,
+          "same_symbol_reentry_within_1h": 0,
+          "same_symbol_reentry_within_4h": 0,
+          "same_symbol_reentry_within_24h": 0,
+          "turnover_notional": "395.408689261589"
+        }
+      }
+    }
+  },
+  "old_config_hash": "b110271a4b2aa86e74e3f262f90e1020d3d1d748004e8cf6973e989db092585a",
+  "v3_config_hash": "676c38b45954d3d25d5298a567d61d226dcf7f1b9e06c50af35fb2fe43fda464"
+}

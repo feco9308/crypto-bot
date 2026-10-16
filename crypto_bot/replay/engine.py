@@ -13,6 +13,7 @@ from crypto_bot.indicators.technical import features
 from crypto_bot.replay import stale
 from crypto_bot.replay.clock import ReplayClock, at, ms
 from crypto_bot.replay.config import settings_for
+from crypto_bot.replay.entry_ranking import ranked
 from crypto_bot.replay.execution import ReplayExecution
 from crypto_bot.replay.exit_v2 import DEFAULTS as V2_DEFAULTS
 from crypto_bot.replay.exit_v2 import STAGES, SetupRearm, evaluation
@@ -351,6 +352,14 @@ class Variant:
                 self.config["exit_policy"] == NAME and signal.action == "SELL"
             ):
                 self.pending.append((signal, row))
+        ranking_policy = self.config.get("entry_ranking", "OFF")
+        if ranking_policy != "OFF":
+            self.pending = ranked(self.pending, ranking_policy)
+            self.events.extend(
+                row["_ranking_event"]
+                for signal, row in self.pending
+                if "_ranking_event" in row
+            )
         return {signal.symbol for signal, row in self.pending} | existing
 
     def execute_signals(self, datasets, now, fallback):
@@ -365,6 +374,12 @@ class Variant:
         for signal, row in sorted(
             self.pending, key=lambda item: item[0].action != "SELL"
         ):
+            ranking_audit = (
+                row.get("_entry_ranking", {})
+                if self.config.get("entry_ranking", "OFF") != "OFF"
+                and signal.action == "BUY"
+                else {}
+            )
             if (
                 self.rearm
                 and signal.action == "BUY"
@@ -378,6 +393,7 @@ class Variant:
                     symbol=signal.symbol,
                     action="BUY",
                     reason="SETUP_NOT_REARMED",
+                    **ranking_audit,
                 )
                 continue
             c = datasets.get(signal.symbol, {}).get(now)
@@ -392,6 +408,7 @@ class Variant:
                     action=signal.action,
                     position_id=held.id,
                     reason="QUARANTINED_POSITION; fresh execution data unavailable",
+                    **ranking_audit,
                 )
                 continue
             if c is None:
@@ -404,6 +421,7 @@ class Variant:
                     reason="MISSING_1M_EXECUTION_CANDLE; fallback disabled"
                     if not fallback
                     else "MISSING_EXECUTION_CANDLE",
+                    **ranking_audit,
                 )
                 self.block_entry(signal, self.events[-1]["reason"])
                 continue
@@ -419,6 +437,7 @@ class Variant:
                     symbol=signal.symbol,
                     action=signal.action,
                     reasons=["Fresh portfolio marks unavailable"],
+                    **ranking_audit,
                     missing_mark_symbols=sorted(
                         pos.symbol
                         for pos in pfolio.positions()
@@ -437,6 +456,7 @@ class Variant:
                         now,
                         symbol=signal.symbol,
                         reasons=["INSTITUTIONAL_CONTEXT_UNAVAILABLE"],
+                        **ranking_audit,
                     )
                     continue
                 audit = self.research_context.context(
@@ -462,6 +482,7 @@ class Variant:
                         symbol=signal.symbol,
                         reasons=[reason],
                         context=audit,
+                        **ranking_audit,
                     )
                     continue
                 risk = RiskManager(
@@ -479,6 +500,7 @@ class Variant:
                 action=signal.action,
                 reasons=list(signal.reasons),
                 entry_reference=str(signal.entry_reference),
+                **ranking_audit,
             )
             self.event(
                 "RISK_DECISION",
@@ -487,6 +509,7 @@ class Variant:
                 action=signal.action,
                 decision=asdict(decision),
                 portfolio=asdict(decision_view),
+                **ranking_audit,
             )
             if not decision.approved:
                 self.block_entry(signal, decision.reasons)
@@ -587,8 +610,16 @@ class Variant:
             else:
                 position.slippage_total += D(audit["slippage"])
                 self.closed.append(self.trade(position, now))
+            if ranking_audit:
+                row["_ranking_event"].update(
+                    order_id=audit["order_id"],
+                    position_id=position.id,
+                )
             self.event(
-                "ENTRY_FILL" if signal.action == "BUY" else "EXIT_FILL", now, **audit
+                "ENTRY_FILL" if signal.action == "BUY" else "EXIT_FILL",
+                now,
+                **audit,
+                **ranking_audit,
             )
         self.pending = []
 

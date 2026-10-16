@@ -1,0 +1,77 @@
+"""Import frozen hypotheses into the existing UI without starting research."""
+
+import json
+import threading
+from pathlib import Path
+
+import pytest
+from test_replay_integration import web_case  # noqa: F401
+from werkzeug.serving import make_server
+
+from crypto_bot.replay.config import validate
+
+playwright = pytest.importorskip("playwright.sync_api")
+
+
+@pytest.mark.parametrize("width", [1440, 390])
+def test_ranking_config_ui_roundtrip(request, width):
+    client, store, _ = request.getfixturevalue("web_case")
+    expected = json.loads(
+        (
+            Path(__file__).parents[1]
+            / "docs/replay/institutional-entry-ranking-v1-2024-exploration.config.json"
+        ).read_text()
+    )
+    server = make_server("127.0.0.1", 0, client.application, threaded=True)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with playwright.sync_playwright() as p:
+            browser = p.chromium.launch()
+            try:
+                page = browser.new_page(viewport=dict(width=width, height=960))
+                starts = []
+                errors = []
+                page.on(
+                    "request",
+                    lambda r: (
+                        starts.append(r.url)
+                        if r.method == "POST" and r.url.endswith("/api/replay/runs")
+                        else None
+                    ),
+                )
+                page.on("pageerror", lambda e: errors.append(str(e)))
+                page.goto(f"http://127.0.0.1:{server.server_port}/replay")
+                page.locator("#replay-config-json").fill(json.dumps(expected))
+                page.locator("#replay-config-validate").click()
+                playwright.expect(
+                    page.locator("#replay-config-status")
+                ).to_contain_text("Valid config imported")
+                assert page.locator(".replay-variant").count() == 3
+                for i, policy in enumerate(
+                    ["OFF", "market_score_desc_v1", "acceleration_efficiency_v1"]
+                ):
+                    assert (
+                        page.locator("[data-key=entry_ranking]").nth(i).input_value()
+                        == policy
+                    )
+                page.screenshot(
+                    path=f"/tmp/institutional-entry-ranking-{width}.png", full_page=True
+                )
+                page.locator("#replay-config-export").click()
+                playwright.expect(
+                    page.locator("#replay-config-status")
+                ).to_contain_text("exported")
+                assert validate(
+                    json.loads(page.locator("#replay-config-json").input_value())
+                ) == validate(expected)
+                assert store.runs() == [] and starts == [] and not errors
+                assert page.evaluate(
+                    "document.documentElement.scrollWidth <= innerWidth"
+                )
+            finally:
+                browser.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)

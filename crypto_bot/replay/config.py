@@ -10,6 +10,7 @@ from pathlib import Path
 
 from crypto_bot.config.settings import Settings
 from crypto_bot.replay.clock import ms, utc
+from crypto_bot.replay.entry_ranking import POLICIES as RANKING_POLICIES
 from crypto_bot.replay.market_context import ISOLATED
 from crypto_bot.replay.registry import EXITS, STRATEGIES
 from crypto_bot.replay.research import (
@@ -61,6 +62,7 @@ VARIANT_FIELDS = (
     "btc_regime_entry_gate",
     "setup_rearm",
     "entry_admission",
+    "entry_ranking",
     "entry_filter",
 )
 
@@ -125,13 +127,13 @@ def input_config(snapshot):
                 v.get(k, "OFF")
                 if k == "btc_regime_entry_gate"
                 else v.get(k, "OFF")
-                if k in ("setup_rearm", "entry_admission")
+                if k in ("setup_rearm", "entry_admission", "entry_ranking")
                 else v.get(k, FILTER_DEFAULTS)
                 if k == "entry_filter"
                 else v[k]
             )
             for k in VARIANT_FIELDS
-            if k not in ("setup_rearm", "entry_admission") or k in v
+            if k not in ("setup_rearm", "entry_admission", "entry_ranking") or k in v
         }
         for v in snapshot["variants"]
     ]
@@ -229,6 +231,13 @@ def variant(value, index=0):
         )
     except ConfigValidationError as exc:
         errors.extend(exc.errors)
+    ranking = value.get("entry_ranking", "OFF")
+    if ranking not in RANKING_POLICIES:
+        invalid(
+            f"{path}.entry_ranking", "Must be one of: " + ", ".join(RANKING_POLICIES)
+        )
+    if ranking != "OFF" and value.get("strategy") != "institutional_style_v1":
+        invalid(f"{path}.entry_ranking", "Requires institutional_style_v1")
     admission = value.get("entry_admission", "OFF")
     if admission not in ("OFF", "fresh_setup_admission_v1"):
         invalid(f"{path}.entry_admission", "Must be OFF or fresh_setup_admission_v1")
@@ -373,6 +382,7 @@ def variant(value, index=0):
     snapshot = paper.public_dict()
     return dict(
         name=name,
+        **({"entry_ranking": ranking} if ranking != "OFF" else {}),
         **({"entry_admission": admission} if admission != "OFF" else {}),
         **({"setup_rearm": rearm} if rearm != "OFF" else {}),
         btc_regime_entry_gate=gate,
