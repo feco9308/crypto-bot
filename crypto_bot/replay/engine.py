@@ -51,6 +51,7 @@ from crypto_bot.risk.manager import RiskManager
 from crypto_bot.scanner.momentum import score_momentum
 from crypto_bot.scanner.selection import select_watchlist
 from crypto_bot.trading.domain import ZERO, D, MarketContext, StrategySignal
+from crypto_bot.trading.ordering import candidate_order_key
 
 
 class Variant:
@@ -169,7 +170,7 @@ class Variant:
                 f,
             )
             result.append((context, row))
-        return sorted(result, key=lambda item: (-item[0].score, item[0].symbol))
+        return sorted(result, key=lambda item: candidate_order_key(item[0]))
 
     def signals(self, rows, watch, now):
         self.pending = []

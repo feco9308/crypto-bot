@@ -25,6 +25,7 @@ from crypto_bot.storage.paper_models import (
     SymbolTradePermission,
 )
 from crypto_bot.trading.domain import D, MarketContext, RiskDecision, StrategySignal
+from crypto_bot.trading.ordering import candidate_order_key
 from crypto_bot.trading.permissions import entry_permission
 from crypto_bot.trading.quotes import BinancePublicQuotes, MarketQuote
 from crypto_bot.trading.strategy import ReferenceStrategy, StrategyEngine
@@ -154,7 +155,7 @@ class PaperEngine:
                     "PAPER_INVALID_SNAPSHOT",
                     extra={"event_data": {"snapshot_id": snapshot.id}},
                 )
-        return result
+        return sorted(result, key=candidate_order_key)
 
     def apply_signal(self, session, signal, portfolio, now, quotes, exit_reason=None):
         quotes = self.fresh_quotes(quotes, now)
@@ -343,6 +344,7 @@ class PaperEngine:
                     if order.status == "FILLED":
                         exited.add(position.symbol)
                     result["orders"] += 1
+            pending = []
             for context in contexts:
                 if session.get(ProcessedSnapshot, context.snapshot_id) is not None:
                     continue
@@ -363,6 +365,10 @@ class PaperEngine:
                 signal = replace(
                     self.strategy.evaluate(context, has_position), timestamp=now
                 )
+                pending.append(signal)
+            # Protection exits already ran above. Strategy SELLs release capacity
+            # before BUY competition; stable sort retains the shared candidate order.
+            for signal in sorted(pending, key=lambda signal: signal.action != "SELL"):
                 order = self.apply_signal(
                     session,
                     signal,
