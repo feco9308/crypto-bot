@@ -164,7 +164,9 @@ def quote_display(position, quote):
         quote=quote,
         unrealized_pnl=str(value - position.notional - position.entry_fee),
         current_exposure=str(value),
-        distance_to_stop_pct=str((bid - position.stop_price) / bid * 100),
+        distance_to_stop_pct=str((bid - position.stop_price) / bid * 100)
+        if position.stop_price is not None
+        else None,
         distance_to_tp_pct=str((position.take_profit_price - bid) / bid * 100)
         if position.take_profit_price
         else None,

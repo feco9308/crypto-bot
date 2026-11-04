@@ -138,7 +138,7 @@ def project(row, now):
         unrealized_pnl=str(p.unrealized_pnl),
         total_fees=str(p.entry_fee + p.exit_fee),
         return_pct=float(pnl / cost * 100) if cost else None,
-        stop_price=str(p.stop_price),
+        stop_price=str(p.stop_price) if p.stop_price is not None else None,
         take_profit_price=str(p.take_profit_price) if p.take_profit_price else None,
         snapshot_id=snap.id if snap else None,
         snapshot_timestamp=iso_utc(snap.timestamp) if snap else None,

@@ -133,7 +133,7 @@ def test_paper_web_control_manual_close_and_audit(setup, database, settings):
         response = client.get("/api/system/status").json
         assert (
             response["version"] == "0.2.0"
-            and response["migration_version"] == "0003_quotes_permissions"
+            and response["migration_version"] == "0004_s2_forward"
         )
         assert not response["trading_enabled"]
         assert client.post("/paper/control", data={"enabled": "ON"}).status_code == 403

@@ -14,5 +14,25 @@ def migration_config(connection):
 
 
 def upgrade_database(database):
-    with database.engine.begin() as connection:
-        command.upgrade(migration_config(connection), "head")
+    # SQLite nullable-column batch rebuild must preserve referencing ledger rows.
+    # FK enforcement is disabled only on this migration connection, outside BEGIN;
+    # integrity is checked before commit and enforcement restored afterwards.
+    with database.engine.connect() as connection:
+        sqlite = connection.dialect.name == "sqlite"
+        if sqlite:
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            connection.commit()
+        try:
+            with connection.begin():
+                command.upgrade(migration_config(connection), "head")
+                if (
+                    sqlite
+                    and connection.exec_driver_sql(
+                        "PRAGMA foreign_key_check"
+                    ).fetchone()
+                ):
+                    raise RuntimeError("Migration foreign-key integrity check failed")
+        finally:
+            if sqlite:
+                connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+                connection.commit()

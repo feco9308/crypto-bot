@@ -298,6 +298,10 @@ class PaperEngine:
                 and a.lease_owner != lease_owner
             ):
                 raise RuntimeError("Account owned by another paper engine")
+            from crypto_bot.trading.profiles import S2_PROFILE
+
+            if a.configuration.get("execution_profile") == S2_PROFILE:
+                raise RuntimeError("Reference engine detached from S2 generation")
             a.configuration = self.settings.public_dict()
             contexts = self.contexts(session, now)
             result["fresh_markets"] = len(contexts)
@@ -314,7 +318,8 @@ class PaperEngine:
                     continue
                 reason = (
                     "STOP"
-                    if quote.bid <= position.stop_price
+                    if position.stop_price is not None
+                    and quote.bid <= position.stop_price
                     else "TAKE_PROFIT"
                     if position.take_profit_price
                     and quote.bid >= position.take_profit_price
@@ -397,6 +402,13 @@ class PaperEngine:
         explicit_now = now
         now = now or utcnow()
         with self.repository.database.session() as session:
+            if (
+                PortfolioService(session).account.configuration.get("execution_profile")
+                == "FULL_EQUITY_NO_STOP_V1"
+            ):
+                raise ValueError(
+                    "Frozen S2 closes only through its daily execution profile"
+                )
             position = session.get(PaperPosition, position_id)
             if position is None or position.status != "OPEN":
                 raise ValueError("Position is not open")

@@ -84,7 +84,7 @@ class PositionView:
     quantity: Decimal
     entry_price: Decimal
     current_price: Decimal
-    stop_price: Decimal
+    stop_price: Decimal | None
     entry_fee: Decimal
     strategy_name: str
     take_profit_price: Decimal | None = None

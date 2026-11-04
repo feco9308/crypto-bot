@@ -3,6 +3,7 @@ import json
 import signal
 import threading
 import uuid
+from pathlib import Path
 
 from crypto_bot.config.settings import Settings
 from crypto_bot.monitoring.config import MonitorSettings
@@ -10,6 +11,11 @@ from crypto_bot.monitoring.service import Heartbeat, Monitoring
 from crypto_bot.storage.database import Database
 from crypto_bot.trading.config import PaperSettings
 from crypto_bot.trading.engine import PaperEngine
+from crypto_bot.trading.profiles import (
+    S2_PROFILE,
+    SAFETY_EXIT_STATUS,
+    ForwardSafetyError,
+)
 from crypto_bot.trading.repository import PaperRepository
 
 
@@ -30,12 +36,14 @@ def paper_main(argv):
             "permissions",
             "allow",
             "deny",
+            "activate-s2",
         ],
     )
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--position", type=int)
     parser.add_argument("--confirm")
     parser.add_argument("--symbol")
+    parser.add_argument("--provenance")
     args = parser.parse_args(argv)
     scanner = Settings.load()
     settings = PaperSettings.load()
@@ -51,6 +59,15 @@ def paper_main(argv):
     if not repo.status().get("initialized"):
         parser.error("Run migrate and paper init first")
     monitor = Monitoring(database, MonitorSettings.load())
+    if args.command == "activate-s2":
+        if not args.provenance:
+            parser.error("--provenance JSON file is required")
+        activation = repo.activate_s2(
+            json.loads(Path(args.provenance).read_text()),
+            confirmed=args.confirm == "ACTIVATE-S2-FORWARD",
+        )
+        print(json.dumps(activation, indent=2))
+        return
     if args.command in {"on", "off"}:
         repo.set_enabled(args.command == "on")
         monitor.event(
@@ -71,8 +88,15 @@ def paper_main(argv):
         )
         print(json.dumps(repo.permissions()))
         return
-    engine = PaperEngine(repo, scanner)
+    if settings.execution_profile == S2_PROFILE:
+        from crypto_bot.trading.forward import S2ForwardEngine
+
+        engine = S2ForwardEngine(repo, scanner)
+    else:
+        engine = PaperEngine(repo, scanner)
     if args.command == "close":
+        if settings.execution_profile == S2_PROFILE:
+            parser.error("Frozen S2 closes only on its completed daily SELL decision")
         if args.position is None:
             parser.error("--position is required")
         print(json.dumps({"order_id": engine.manual_close(args.position)}))
@@ -100,17 +124,24 @@ def paper_main(argv):
                 repo.lease(owner, utcnow(), duration)
                 result = engine.run_once(lease_owner=owner)
                 warning = (
-                    "Public quotes missing/stale: "
-                    + ", ".join(result["missing_quotes"])
-                    if result["missing_quotes"]
-                    else "No fresh closed 1h scanner observations"
-                    if not result["fresh_markets"]
-                    else None
+                    result.get("warning")
+                    if settings.execution_profile == S2_PROFILE
+                    else (
+                        "Public quotes missing/stale: "
+                        + ", ".join(result["missing_quotes"])
+                        if result["missing_quotes"]
+                        else "No fresh closed 1h scanner observations"
+                        if not result["fresh_markets"]
+                        else None
+                    )
                 )
                 heartbeat.result("DEGRADED" if warning else "RUNNING", warning)
                 if args.once:
                     print(json.dumps(result))
                     return
+            except ForwardSafetyError as exc:
+                heartbeat.result("ERROR", str(exc))
+                raise SystemExit(SAFETY_EXIT_STATUS) from exc
             except Exception as exc:
                 from sqlalchemy.exc import SQLAlchemyError
 

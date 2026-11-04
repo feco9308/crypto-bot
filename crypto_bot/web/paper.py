@@ -132,6 +132,8 @@ def register_paper(app, database, scanner_settings):
     @app.post("/paper/positions/<int:position_id>/close")
     def close_paper(position_id):
         csrf_check()
+        if repo.status().get("forward"):
+            abort(409, "Frozen S2 closes only on completed daily SELL decisions")
         try:
             PaperEngine(repo, scanner_settings).manual_close(position_id)
         except (ValueError, RuntimeError) as exc:
@@ -203,7 +205,9 @@ def register_paper(app, database, scanner_settings):
                 if position.closed_at
                 else None,
                 entry=float(position.entry_price),
-                stop=float(position.stop_price),
+                stop=float(position.stop_price)
+                if position.stop_price is not None
+                else None,
                 take_profit=float(position.take_profit_price)
                 if position.take_profit_price
                 else None,

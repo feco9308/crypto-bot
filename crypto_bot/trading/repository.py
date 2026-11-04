@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from datetime import timedelta
 
-from sqlalchemy import delete, inspect, select
+from sqlalchemy import delete, func, inspect, select
 from sqlalchemy.orm import Session
 
 from crypto_bot.portfolio.service import PortfolioService
@@ -191,6 +191,10 @@ class PaperRepository:
             a = session.get(PaperAccount, 1)
             if a is None:
                 raise RuntimeError("Paper account not initialized")
+            from crypto_bot.trading.profiles import S2_PROFILE
+
+            if a.configuration.get("execution_profile") == S2_PROFILE:
+                raise ValueError("S2 history cannot be reset destructively")
             if a.enabled:
                 raise ValueError("Turn paper trading OFF before reset")
             if a.lease_until and a.lease_until > now:
@@ -263,4 +267,154 @@ class PaperRepository:
                     > self.settings.max_quote_age_seconds
                 ],
                 configuration=a.configuration,
+                forward=self.forward_status(session, a),
             )
+
+    def activate_s2(self, provenance, confirmed=False, now=None):
+        from crypto_bot.storage.database import iso_utc
+        from crypto_bot.storage.paper_models import PaperGeneration
+        from crypto_bot.trading.profiles import S2_PROFILE, S2_STRATEGY
+
+        if (
+            not confirmed
+            or self.settings.execution_profile != S2_PROFILE
+            or self.settings.strategy_name != S2_STRATEGY
+        ):
+            raise ValueError("Explicit confirmed S2 profile activation required")
+        if (
+            provenance.get("reason") != "USER_CHOSE_REALTIME_FORWARD_PAPER"
+            or provenance.get("2026_final_oos_pristine") is not False
+            or provenance.get("2026_final_oos_abandoned_for_forward_paper") is not True
+        ):
+            raise ValueError("Documented user OOS abandonment decision required")
+        now = now or utcnow()
+        with self.transaction() as session:
+            p = PortfolioService(session)
+            a = p.account
+            if (
+                a.enabled
+                or p.positions()
+                or a.reserved_cash
+                or session.scalar(
+                    select(PaperOrder.id)
+                    .where(
+                        PaperOrder.status.not_in(["FILLED", "CANCELLED", "REJECTED"])
+                    )
+                    .limit(1)
+                )
+            ):
+                raise ValueError(
+                    "STOP: turn old trading OFF; no open position/pending order/reservation allowed"
+                )
+            if a.lease_until and a.lease_until > now:
+                raise ValueError("Stop paper service before S2 activation")
+            if a.configuration.get("execution_profile") == S2_PROFILE:
+                raise ValueError(
+                    "S2 generation already activated; activation timestamp cannot be reset"
+                )
+            before = {
+                c.name: (
+                    str(getattr(a, c.name))
+                    if c.name not in {"configuration"}
+                    else a.configuration
+                )
+                for c in PaperAccount.__table__.columns
+            }
+            cutoffs = {
+                m.__tablename__: session.scalar(select(func.max(m.id))) or 0
+                for m in [
+                    PaperPosition,
+                    PaperOrder,
+                    PaperFill,
+                    SignalRecord,
+                    RiskRecord,
+                    PortfolioSnapshot,
+                ]
+            }
+            if session.get(PaperGeneration, a.generation) is None:
+                session.add(
+                    PaperGeneration(
+                        id=a.generation,
+                        activated_at=a.created_at,
+                        strategy_name=a.configuration.get("strategy_name", "legacy"),
+                        execution_profile=a.configuration.get(
+                            "execution_profile", "REFERENCE_STOP_RISK_V1"
+                        ),
+                        initial_balance=a.initial_balance,
+                        status="ARCHIVED",
+                        account_before=before,
+                        history_cutoffs=cutoffs,
+                        provenance={"history_retained": True},
+                    )
+                )
+            a.generation += 1
+            a.initial_balance = a.cash_balance = a.day_start_equity = a.peak_equity = q(
+                1000
+            )
+            a.reserved_cash = a.realized_pnl = a.fees_paid = a.max_drawdown = ZERO
+            a.created_at = now
+            a.day = now.date().isoformat()
+            a.lease_owner = a.lease_until = None
+            a.configuration = self.settings.public_dict()
+            a.enabled = True
+            session.add(
+                PaperGeneration(
+                    id=a.generation,
+                    activated_at=now,
+                    strategy_name=S2_STRATEGY,
+                    execution_profile=S2_PROFILE,
+                    initial_balance=q(1000),
+                    status="ACTIVE",
+                    account_before=before,
+                    history_cutoffs=cutoffs,
+                    provenance=provenance,
+                )
+            )
+            return provenance | dict(
+                activated_at=iso_utc(now),
+                strategy_name=S2_STRATEGY,
+                execution_profile=S2_PROFILE,
+                generation=a.generation,
+                starting_equity="1000",
+                starting_cash="1000",
+                starting_state="FLAT",
+                positions=0,
+                first_eligible_source_candle_rule="Latest completed UTC daily candle with close_time strictly AFTER activated_at; no historical catch-up",
+                no_historical_trade_backfill=True,
+            )
+
+    def forward_status(self, session, account):
+        from crypto_bot.storage.database import iso_utc
+        from crypto_bot.storage.paper_models import (
+            ForwardDailyDecision,
+            PaperGeneration,
+        )
+        from crypto_bot.trading.profiles import S2_PROFILE
+
+        if account.configuration.get("execution_profile") != S2_PROFILE:
+            return None
+        generation = session.get(PaperGeneration, account.generation)
+        if generation is None:
+            return None
+        latest = session.scalar(
+            select(ForwardDailyDecision)
+            .where(ForwardDailyDecision.generation_id == generation.id)
+            .order_by(ForwardDailyDecision.source_close_ms.desc())
+            .limit(1)
+        )
+        return dict(
+            strategy_name=generation.strategy_name,
+            execution_profile=generation.execution_profile,
+            generation=generation.id,
+            status=generation.status,
+            state="LONG" if PortfolioService(session).positions() else "FLAT",
+            activated_at=iso_utc(generation.activated_at),
+            latest_indicators=generation.latest_indicators,
+            latest_action=latest.action if latest else None,
+            latest_decision_time=iso_utc(latest.decision_time) if latest else None,
+            execution_status=latest.status
+            if latest
+            else "AWAITING_POST_ACTIVATION_CANDLE",
+            last_error=generation.last_error,
+            provenance=generation.provenance,
+        )

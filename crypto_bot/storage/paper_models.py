@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     DateTime,
     ForeignKey,
@@ -10,6 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -111,7 +113,7 @@ class PaperPosition(ExtensionBase):
     entry_price: Mapped[Decimal] = mapped_column(MONEY)
     quantity: Mapped[Decimal] = mapped_column(MONEY)
     notional: Mapped[Decimal] = mapped_column(MONEY)
-    stop_price: Mapped[Decimal] = mapped_column(MONEY)
+    stop_price: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
     take_profit_price: Mapped[Decimal | None] = mapped_column(MONEY)
     opened_at: Mapped[datetime] = mapped_column(DateTime)
     current_price: Mapped[Decimal] = mapped_column(MONEY)
@@ -193,3 +195,53 @@ class SystemEvent(ExtensionBase):
     component: Mapped[str] = mapped_column(String(50))
     level: Mapped[str] = mapped_column(String(12))
     message: Mapped[str] = mapped_column(String(300))
+
+
+class PaperGeneration(ExtensionBase):
+    """Audit boundary for the shared ledger, not a second wallet."""
+
+    __tablename__ = "paper_generations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    activated_at: Mapped[datetime] = mapped_column(DateTime)
+    strategy_name: Mapped[str] = mapped_column(String(80))
+    execution_profile: Mapped[str] = mapped_column(String(50))
+    initial_balance: Mapped[Decimal] = mapped_column(MONEY)
+    status: Mapped[str] = mapped_column(String(20))
+    account_before: Mapped[dict] = mapped_column(JSON)
+    history_cutoffs: Mapped[dict] = mapped_column(JSON)
+    provenance: Mapped[dict] = mapped_column(JSON)
+    latest_indicators: Mapped[dict | None] = mapped_column(JSON)
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class ForwardDailyDecision(ExtensionBase):
+    __tablename__ = "paper_forward_daily_decisions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    generation_id: Mapped[int] = mapped_column(ForeignKey("paper_generations.id"))
+    strategy_name: Mapped[str] = mapped_column(String(80))
+    symbol: Mapped[str] = mapped_column(String(40))
+    source_open_ms: Mapped[int] = mapped_column(BigInteger)
+    source_close_ms: Mapped[int] = mapped_column(BigInteger)
+    decision_time: Mapped[datetime] = mapped_column(DateTime)
+    state_before: Mapped[str] = mapped_column(String(8))
+    state_after: Mapped[str] = mapped_column(String(8))
+    action: Mapped[str] = mapped_column(String(8))
+    indicators: Mapped[dict] = mapped_column(JSON)
+    signal_id: Mapped[int] = mapped_column(
+        ForeignKey("strategy_signals.id"), unique=True
+    )
+    order_id: Mapped[int | None] = mapped_column(
+        ForeignKey("paper_orders.id"), unique=True
+    )
+    status: Mapped[str] = mapped_column(String(30))
+    reason: Mapped[str] = mapped_column(Text, default="")
+    execution_audit: Mapped[dict | None] = mapped_column(JSON)
+    __table_args__ = (
+        UniqueConstraint(
+            "generation_id",
+            "strategy_name",
+            "symbol",
+            "source_close_ms",
+            name="uq_forward_daily_generation_candle",
+        ),
+    )

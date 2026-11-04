@@ -340,7 +340,7 @@ def test_exports_json_csv_metadata_and_secrets(analysis_case, database):
     data = response.json
     assert (
         data["metadata"]["trade_count"] == 1
-        and data["metadata"]["database_schema_version"] == "0003_quotes_permissions"
+        and data["metadata"]["database_schema_version"] == "0004_s2_forward"
     )
     assert data["metadata"]["score_version"] == ["heuristic-v1"]
     assert (

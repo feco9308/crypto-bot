@@ -39,8 +39,26 @@ class PaperSettings:
     exit_score: Decimal = Decimal("45")
     exit_on_bearish_ema: bool = True
     take_profit_r_multiple: Decimal = Decimal("0")
+    execution_profile: str = "REFERENCE_STOP_RISK_V1"
 
     def __post_init__(self):
+        from crypto_bot.trading.profiles import (
+            REFERENCE_PROFILE,
+            S2_PROFILE,
+            S2_STRATEGY,
+        )
+
+        if self.execution_profile not in {REFERENCE_PROFILE, S2_PROFILE}:
+            raise ValueError("Unknown paper execution profile")
+        if self.execution_profile == S2_PROFILE and (
+            self.strategy_name != S2_STRATEGY
+            or self.quote_asset != "USDT"
+            or self.paper_fee_pct != Decimal("0.1")
+            or self.paper_slippage_pct != Decimal("0.05")
+        ):
+            raise ValueError(
+                "Frozen S2 profile requires exact strategy, USDT and 0.1/0.05 costs"
+            )
         for f in fields(self):
             value = getattr(self, f.name)
             if isinstance(value, Decimal) and (not value.is_finite() or value < 0):
@@ -101,7 +119,9 @@ class PaperSettings:
 
     def public_dict(self):
         return {
-            k: str(v) if isinstance(v, Decimal) else v for k, v in asdict(self).items()
+            k: str(v) if isinstance(v, Decimal) else v
+            for k, v in asdict(self).items()
+            if k != "execution_profile" or v != "REFERENCE_STOP_RISK_V1"
         }
 
     @classmethod
