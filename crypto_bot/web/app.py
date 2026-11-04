@@ -19,6 +19,7 @@ from crypto_bot.config.settings import Settings
 from crypto_bot.logging_config import configure_logging
 from crypto_bot.scanner.selection import OVERRIDES
 from crypto_bot.storage.database import Database
+from crypto_bot.web.paper_formatting import register_paper_formatters
 
 
 def create_app(settings=None, database=None):
@@ -27,6 +28,7 @@ def create_app(settings=None, database=None):
     database = database or Database(settings.database_url)
     database.initialize()
     app = Flask(__name__)
+    register_paper_formatters(app)
     app.secret_key = settings.secret_key or secrets.token_hex(32)
     app.config.update(
         SESSION_COOKIE_HTTPONLY=True,
