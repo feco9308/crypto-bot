@@ -595,3 +595,11 @@ entry settings unchanged. See [policy, state and metric definitions](docs/INSTIT
 and the [2024 A/B/C/D/E importable config](docs/replay/institutional-exit-v2-2024.config.json).
 Import/VALIDATE never starts a run. No deployment, migration or production
 strategy change is included. NO LIVE TRADING.
+
+### BTC S2 realtime forward PAPER
+
+The separately activated BTC daily Bollinger20/2 profile reuses the paper ledger
+with full-equity sizing and no stop/TP. It never places exchange orders. See
+[activation, causal data boundary, provenance and safety](docs/BTC_S2_FORWARD_PAPER_V1.md).
+Activation explicitly abandons pristine2026 final OOS; pre-activation candles are
+warmup only, with no historical trade catch-up. NO LIVE TRADING IMPLEMENTED.

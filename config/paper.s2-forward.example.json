@@ -1,0 +1,12 @@
+{
+  "execution_profile": "FULL_EQUITY_NO_STOP_V1",
+  "strategy_name": "BTC_BOLLINGER_MR_20_2_FORWARD_V1",
+  "initial_paper_balance": "1000",
+  "quote_asset": "USDT",
+  "paper_fee_pct": "0.1",
+  "paper_slippage_pct": "0.05",
+  "pyramiding": false,
+  "loop_interval": 15,
+  "max_quote_age_seconds": 10,
+  "quote_timeout": 5
+}

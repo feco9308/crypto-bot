@@ -12,6 +12,8 @@ ExecStartPre=/usr/lib/systemd/systemd-time-wait-sync
 TimeoutStartSec=120
 ExecStart=/home/ndvi/crypto-bot/.venv/bin/market-scanner paper run
 Restart=on-failure
+# Persisted forward safety halt must require operator intervention.
+RestartPreventExitStatus=78
 RestartSec=5
 TimeoutStopSec=120
 StandardOutput=journal
