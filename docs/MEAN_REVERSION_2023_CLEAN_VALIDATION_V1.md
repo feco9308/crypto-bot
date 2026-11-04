@@ -133,3 +133,39 @@ Before any real 2023 performance computation: **27 targeted tests PASS**,
 via the test-process-only
 `LD_LIBRARY_PATH=/home/ndvi/.local/lib/crypto-bot-browser/usr/lib/x86_64-linux-gnu`.
 No production environment or dependency installation is changed.
+
+## Completed one-shot outcome
+
+The preregistered implementation commit is
+`a05f58d7f62912c6a2caab9125a7565c0c09d4d3`. Candidate provenance SHA256 is
+`3010929407d97c837443905080b495a7b5891235d493d956ce99f528a49867e6`;
+frozen-data provenance SHA256 is
+`d16075c22e27fc586f358f8ff13a78e0a8fa864e9d58b075e4afe0c571bbad2b`.
+Both were fixed before the consumed marker and remained unchanged afterwards.
+The frozen strategy/accounting/adapter source was not edited after results.
+
+Result: **CLEAN_VALIDATION_PASS**.
+Candidate status: `CONFIRMED_ON_2023_CLEAN_COHORT`.
+`final_oos_eligible: YES`.
+`2023_clean_cohort_consumed: YES` permanently.
+
+Gross/net returns are +47.056039% / +44.432711%; ending equity
+1470.560394 / 1444.327109 USDT. NET max daily-close drawdown is 9.714704%,
+executed turnover 16024.166453 USDT, fees 16.024166 and slippage 8.012200 USDT.
+Six entries and exits form six completed episodes, zero open; win rate 83.3333%,
+mean/median completed holding 7.3333 / 5.5 days, time invested 12.0548% (44 days).
+
+All four preregistered criteria pass without changes: gross positive, net
+positive, six completed NET episodes >= five, and 12/12 positive leave-month
+returns. The worst omission is March (+22.336277%); best is August (+47.674342%).
+There are four positive, one negative and seven flat calendar months. This is
+the prescribed confirmatory decision, not production promotion or a 2026 result.
+
+Independent validation passed on 365 signal/indicator observations and both
+365-day gross/net cash paths, including execution, costs, episode counts and
+leave-month results. Read-only export validation reconciles six episode cash
+flows, 24 gross/net fills, 730 daily records, 24 monthly records and 12 leave-month
+records. The repeat-execution guard is confirmed using the persisted consumed
+marker without executing another validation. No repair, tuning or rerun occurred.
+Only this documentation outcome was appended after consumption; no frozen
+implementation or provenance changed. No 2026 final OOS is launched.
